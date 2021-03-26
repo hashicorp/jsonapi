@@ -156,12 +156,22 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 
 	for i := 0; i < modelValue.NumField(); i++ {
 		fieldType := modelType.Field(i)
+		fieldValue := modelValue.Field(i)
+
+		jsonTag := fieldType.Tag.Get("json")
+		if jsonTag != "" {
+			//err := jsonUnmarshal(jsonTag, fieldType, fieldValue, data)
+			//if err != nil {
+			//	er = err
+			//	break
+			//}
+			continue
+		}
+
 		tag := fieldType.Tag.Get("jsonapi")
 		if tag == "" {
 			continue
 		}
-
-		fieldValue := modelValue.Field(i)
 
 		args := strings.Split(tag, ",")
 		if len(args) < 1 {
@@ -255,6 +265,7 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 				er = err
 				break
 			}
+			fmt.Println("OMAR AFTER UNMARSHAL")
 
 			assign(fieldValue, value)
 		} else if annotation == annotationRelation {
@@ -348,6 +359,7 @@ func fullNode(n *Node, included *map[string]*Node) *Node {
 // assign will take the value specified and assign it to the field; if
 // field is expecting a ptr assign will assign a ptr.
 func assign(field, value reflect.Value) {
+	fmt.Println("OMAR ASSIGN")
 	value = reflect.Indirect(value)
 
 	if field.Kind() == reflect.Ptr {
@@ -364,6 +376,7 @@ func assign(field, value reflect.Value) {
 // assign assigns the specified value to the field,
 // expecting both values not to be pointer types.
 func assignValue(field, value reflect.Value) {
+	fmt.Println("OMAR ASSIGN_VALUE")
 	switch field.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16,
 		reflect.Int32, reflect.Int64:
@@ -378,6 +391,9 @@ func assignValue(field, value reflect.Value) {
 	case reflect.Bool:
 		field.SetBool(value.Bool())
 	default:
+		fmt.Println("OMAR DEFAULT")
+		fmt.Println(field)
+		fmt.Println(value)
 		field.Set(value)
 	}
 }
@@ -393,6 +409,12 @@ func unmarshalAttribute(
 	// Handle field of type []string
 	if fieldValue.Type() == reflect.TypeOf([]string{}) {
 		value, err = handleStringSlice(attribute)
+		return
+	}
+
+	// Handle field of type map[string][]string
+	if fieldValue.Type() == reflect.TypeOf(map[string][]string{}) {
+		value, err = handleMapStringSlice(attribute, fieldValue)
 		return
 	}
 
@@ -445,6 +467,49 @@ func handleStringSlice(attribute interface{}) (reflect.Value, error) {
 	}
 
 	return reflect.ValueOf(values), nil
+}
+
+type mapStringSlice map[string][]string
+
+func handleMapStringSlice(attribute interface{}, fieldValue reflect.Value) (reflect.Value, error) {
+	fmt.Println("OMAR handleMapStringSlice")
+	fmt.Println(attribute)
+	fmt.Println("OMAR fieldValue")
+	fmt.Println(fieldValue.Type())
+	v := reflect.ValueOf(attribute)
+	mapAttribute := attribute.(map[string]interface{})
+	fmt.Println("OMAR mapAttribute")
+	fmt.Println(mapAttribute)
+	values := map[string][]string{}
+	for key, valSlice := range mapAttribute {
+		values[key] = []string{}
+		fmt.Println(key)
+		fmt.Println(valSlice)
+		foo := valSlice.(string)
+		fmt.Println(foo)
+		//vals := []string{}
+		//for _, val := range valSlice {
+		//	fmt.Println(val)
+		//	//vals = append(vals, val.(string))
+		//}
+		//fmt.Println(vals)
+		//fmt.Println("OMAR ranging")
+		//s := make([]string, len(valSlice))
+		//for i, v := range valSlice {
+		//	s[i] = fmt.Sprint(v)
+		//}
+		//values[key] = s
+	}
+	fmt.Println(v)
+	fmt.Println(values)
+
+	return reflect.ValueOf(v), nil
+	//values := make([]string, v.Len())
+	//for i := 0; i < v.Len(); i++ {
+	//	values[i] = v.Index(i).Interface().(string)
+	//}
+
+	//return reflect.ValueOf(values), nil
 }
 
 func handleTime(attribute interface{}, args []string, fieldValue reflect.Value) (reflect.Value, error) {
@@ -660,4 +725,42 @@ func handleStructSlice(
 	}
 
 	return models, nil
+}
+
+func jsonUnmarshal(tag string, structField reflect.StructField, fieldValue reflect.Value, node *Node) error {
+	args := strings.Split(tag, ",")
+	attribute := args[0]
+	fmt.Println("OMAR attribute")
+	fmt.Println(attribute)
+	fmt.Println("OMAR structField")
+	fmt.Println(structField)
+	fmt.Println("OMAR fieldValue")
+	fmt.Println(fieldValue)
+	fmt.Println("OMAR node.Attributes")
+	fmt.Println(node.Attributes)
+	if len(args) == 0 {
+		// TODO: change error string
+		return ErrBadJSONAPIStructTag
+	}
+
+	data, err := json.Marshal(node.Attributes)
+	if err != nil {
+		return err
+	}
+	fmt.Println("OMAR data")
+	fmt.Println(string(data))
+
+	var model reflect.Value
+	model = reflect.New(fieldValue.Type())
+	if err := json.Unmarshal(data, model); err != nil {
+		return err
+	}
+
+	fmt.Println("OMAR fieldValue")
+	fmt.Println(fieldValue)
+	fmt.Println("OMAR model")
+	fmt.Println(model)
+	assign(fieldValue, model)
+
+	return nil
 }

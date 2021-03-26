@@ -1387,3 +1387,42 @@ func TestUnmarshalNestedStructSlice(t *testing.T) {
 			out.Teams[0].Members[0].Firstname)
 	}
 }
+
+type HeaderData struct {
+	ID      string              `jsonapi:"primary,header-data"`
+	Name    string              `jsonapi:"attr,name"`
+	Headers map[string][]string `jsonapi:"attr,headers"`
+}
+
+func TestUnmarshalJSONAttribute(t *testing.T) {
+	headers := map[string][]string{
+		"cache-control":  {"private"},
+		"content-length": {"129"},
+	}
+	sample := map[string]interface{}{
+		"data": map[string]interface{}{
+			"type": "header-data",
+			"id":   "123",
+			"attributes": map[string]interface{}{
+				"name":    "Planet Express",
+				"headers": headers,
+			},
+		},
+	}
+
+	data, err := json.Marshal(sample)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := bytes.NewReader(data)
+	out := new(HeaderData)
+
+	if err := UnmarshalPayload(in, out); err != nil {
+		t.Fatal(err)
+	}
+
+	//	if out.Headers["cache-control"][0] != "private" {
+	//		t.Fatalf("TODO: Expected `Delivery Crew` but got `%s`", out)
+	//	}
+	//
+}
