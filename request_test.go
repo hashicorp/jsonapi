@@ -1394,7 +1394,7 @@ type HeaderData struct {
 	Headers map[string][]string `jsonapi:"attr,headers"`
 }
 
-func TestUnmarshalJSONAttribute(t *testing.T) {
+func TestUnmarshalMapStringSlice(t *testing.T) {
 	headers := map[string][]string{
 		"cache-control":  {"private"},
 		"content-length": {"129"},
