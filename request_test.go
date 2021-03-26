@@ -1421,8 +1421,20 @@ func TestUnmarshalMapStringSlice(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	//	if out.Headers["cache-control"][0] != "private" {
-	//		t.Fatalf("TODO: Expected `Delivery Crew` but got `%s`", out)
-	//	}
-	//
+	if len(out.Headers["cache-control"]) == 0 {
+		t.Fatalf("Expected Headers to have Cache Control values, but got:`%s`", out.Headers["cache-control"])
+	}
+
+	if len(out.Headers["content-length"]) == 0 {
+		t.Fatalf("Expected Headers to have Content Length values, but got:`%s`", out.Headers["content-length"])
+	}
+
+	if out.Headers["cache-control"][0] != "private" {
+		t.Fatalf("Expected Cache Control Header to have 'private' value, but got:`%s`", out.Headers["cache-control"])
+	}
+
+	if out.Headers["content-length"][0] != "129" {
+		t.Fatalf("Expected Content Length Header to have '129' value, but got:`%s`", out.Headers["content-length"])
+	}
+
 }
