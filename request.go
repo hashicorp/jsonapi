@@ -396,6 +396,12 @@ func unmarshalAttribute(
 		return
 	}
 
+	// Handle field of type map[string][]string
+	if fieldValue.Type() == reflect.TypeOf(map[string][]string{}) {
+		value, err = handleMapStringSlice(attribute, fieldValue)
+		return
+	}
+
 	// Handle field of type time.Time
 	if fieldValue.Type() == reflect.TypeOf(time.Time{}) ||
 		fieldValue.Type() == reflect.TypeOf(new(time.Time)) {
@@ -442,6 +448,19 @@ func handleStringSlice(attribute interface{}) (reflect.Value, error) {
 	values := make([]string, v.Len())
 	for i := 0; i < v.Len(); i++ {
 		values[i] = v.Index(i).Interface().(string)
+	}
+
+	return reflect.ValueOf(values), nil
+}
+
+func handleMapStringSlice(attribute interface{}, fieldValue reflect.Value) (reflect.Value, error) {
+	values := map[string][]string{}
+	for key, valSlice := range attribute.(map[string]interface{}) {
+		sliceValues := make([]string, 0)
+		for _, v := range valSlice.([]interface{}) {
+			sliceValues = append(sliceValues, v.(string))
+		}
+		values[key] = sliceValues
 	}
 
 	return reflect.ValueOf(values), nil
