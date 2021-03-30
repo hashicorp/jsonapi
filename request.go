@@ -274,6 +274,7 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 				json.NewDecoder(buf).Decode(relationship)
 
 				data := relationship.Data
+				links := relationship.Links
 				models := reflect.New(fieldValue.Type()).Elem()
 
 				for _, n := range data {
@@ -289,6 +290,31 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 					}
 
 					models = reflect.Append(models, m)
+				}
+
+				if links != nil {
+					linkModel := reflect.New(fieldValue.Type().Elem().Elem())
+					linkModelValue := linkModel.Elem()
+					linkModelType := linkModelValue.Type()
+					for i := 0; i < linkModelValue.NumField(); i++ {
+						fieldType := linkModelType.Field(i)
+						tag := fieldType.Tag.Get("jsonapi")
+						if tag == "" {
+							continue
+						}
+						fieldValue := linkModelValue.Field(i)
+						args := strings.Split(tag, ",")
+						annotation := args[0]
+						if annotation == annotationLinks {
+							value, err := unmarshalAttribute(*links, args, fieldType, fieldValue)
+							if err != nil {
+								er = err
+								break
+							}
+							assign(fieldValue, value)
+						}
+					}
+					models = reflect.Append(models, linkModel)
 				}
 
 				fieldValue.Set(models)
@@ -326,6 +352,21 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 				fieldValue.Set(m)
 
 			}
+
+		} else if annotation == annotationLinks {
+			links := data.Links
+			if links == nil {
+				continue
+			}
+
+			structField := fieldType
+			value, err := unmarshalAttribute(*links, args, structField, fieldValue)
+			if err != nil {
+				er = err
+				break
+			}
+
+			assign(fieldValue, value)
 
 		} else {
 			er = fmt.Errorf(unsupportedStructTagMsg, annotation)
@@ -409,6 +450,11 @@ func unmarshalAttribute(
 		return
 	}
 
+	if fieldValue.Type() == reflect.TypeOf(&Links{}) {
+		value, err = handleLinks(attribute, args, fieldValue)
+		return
+	}
+
 	// Handle field of type struct
 	if fieldValue.Type().Kind() == reflect.Struct {
 		value, err = handleStruct(attribute, fieldValue)
@@ -461,6 +507,25 @@ func handleMapStringSlice(attribute interface{}, fieldValue reflect.Value) (refl
 			sliceValues = append(sliceValues, v.(string))
 		}
 		values[key] = sliceValues
+	}
+
+	return reflect.ValueOf(values), nil
+}
+
+func handleLinks(attribute interface{}, args []string, fieldValue reflect.Value) (reflect.Value, error) {
+	b, err := json.Marshal(attribute)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+	var v interface{}
+	err = json.Unmarshal(b, &v)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+
+	var values = map[string]interface{}{}
+	for k, v := range v.(map[string]interface{}) {
+		values[k] = v.(interface{})
 	}
 
 	return reflect.ValueOf(values), nil

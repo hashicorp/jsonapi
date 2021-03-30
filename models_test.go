@@ -60,6 +60,7 @@ type Comment struct {
 	ClientID string `jsonapi:"client-id"`
 	PostID   int    `jsonapi:"attr,post_id"`
 	Body     string `jsonapi:"attr,body"`
+	Links    *Links `jsonapi:"links,omitempty"`
 }
 
 type Book struct {
