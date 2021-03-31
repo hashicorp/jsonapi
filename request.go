@@ -314,8 +314,8 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 								break
 							}
 
-							assignedValue = true
 							assign(fieldValue, value)
+							assignedValue = true
 						}
 					}
 					if assignedValue {

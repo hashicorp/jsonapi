@@ -1201,9 +1201,6 @@ func testModel() *Blog {
 					{
 						ID:   2,
 						Body: "bar",
-						Links: &Links{
-							"self": "http://example.com/articles/1/relationships/author",
-						},
 					},
 				},
 				LatestComment: &Comment{

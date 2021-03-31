@@ -442,9 +442,12 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				}
 			}
 		} else if annotation == annotationLinks {
-			// Handling the `jsonapi:"links"` annotation without
-			// doing anything as the Links are handled below via the
-			// Linkable interface
+			// This is for marshalling.
+			// This is left blank intentionally as the handling
+			// of `jsonapi:"links"` is done below via the
+			// Linkable interface.
+			// And the logic for Marshalling links should be done
+			// via that interface.
 
 		} else {
 			er = ErrBadJSONAPIStructTag
