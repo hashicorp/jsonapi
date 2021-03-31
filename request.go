@@ -293,9 +293,11 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 				}
 
 				if links != nil {
+					var assignedValue bool
 					linkModel := reflect.New(fieldValue.Type().Elem().Elem())
 					linkModelValue := linkModel.Elem()
 					linkModelType := linkModelValue.Type()
+
 					for i := 0; i < linkModelValue.NumField(); i++ {
 						fieldType := linkModelType.Field(i)
 						tag := fieldType.Tag.Get("jsonapi")
@@ -311,10 +313,14 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 								er = err
 								break
 							}
+
+							assignedValue = true
 							assign(fieldValue, value)
 						}
 					}
-					models = reflect.Append(models, linkModel)
+					if assignedValue {
+						models = reflect.Append(models, linkModel)
+					}
 				}
 
 				fieldValue.Set(models)
