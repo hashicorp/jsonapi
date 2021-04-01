@@ -56,10 +56,16 @@ type Post struct {
 }
 
 type Comment struct {
-	ID       int    `jsonapi:"primary,comments"`
-	ClientID string `jsonapi:"client-id"`
-	PostID   int    `jsonapi:"attr,post_id"`
-	Body     string `jsonapi:"attr,body"`
+	ID          int          `jsonapi:"primary,comments"`
+	ClientID    string       `jsonapi:"client-id"`
+	PostID      int          `jsonapi:"attr,post_id"`
+	Body        string       `jsonapi:"attr,body"`
+	Impressions *Impressions `jsonapi:"relation,impressions"`
+	URL         *Links       `jsonapi:"links,omitempty"`
+}
+
+type Impressions struct {
+	URL *Links `jsonapi:"links,omitempty"`
 }
 
 type Book struct {

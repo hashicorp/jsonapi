@@ -772,6 +772,150 @@ func TestUnmarshalManyPayload(t *testing.T) {
 	}
 }
 
+func TestOnePayload_WithRelationLinks(t *testing.T) {
+	selfLink := "http://example.com/articles/1/relationships/author"
+	relatedLink := "http://example.com/articles/1/author"
+	sample := map[string]interface{}{
+		"data": map[string]interface{}{
+			"type": "posts",
+			"id":   "1",
+			"attributes": map[string]interface{}{
+				"body":  "First",
+				"title": "Post",
+			},
+			"relationships": map[string]interface{}{
+				"comments": map[string]interface{}{
+					"links": map[string]string{
+						"self":    selfLink,
+						"related": relatedLink,
+					},
+				},
+			},
+		},
+	}
+
+	data, err := json.Marshal(sample)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := bytes.NewReader(data)
+
+	out := new(Post)
+
+	if err := UnmarshalPayload(in, out); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(out.Comments) == 0 {
+		t.Fatal("Was expecting non-empty Comments")
+	}
+
+	if out.Comments[0].URL == nil {
+		t.Fatal("Was expecting a non nil ptr Link field")
+	}
+
+	links := *out.Comments[0].URL
+	if links["self"] != selfLink {
+		t.Fatalf("Was expecting self Link to equal %s, but got %s", selfLink, links["self"])
+	}
+
+	if links["related"] != relatedLink {
+		t.Fatalf("Was expecting related Link to equal %s, but got %s", relatedLink, links["related"])
+	}
+}
+
+func TestOnePayload_WithLinks(t *testing.T) {
+	selfLink := "http://example.com/articles/1/relationships/author"
+	relatedLink := "http://example.com/articles/1/author"
+	sample := map[string]interface{}{
+		"data": map[string]interface{}{
+			"type": "comments",
+			"id":   "1",
+			"attributes": map[string]interface{}{
+				"body":  "First",
+				"title": "Post",
+			},
+			"links": map[string]string{
+				"self":    selfLink,
+				"related": relatedLink,
+			},
+		},
+	}
+
+	data, err := json.Marshal(sample)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := bytes.NewReader(data)
+
+	out := new(Comment)
+
+	if err := UnmarshalPayload(in, out); err != nil {
+		t.Fatal(err)
+	}
+
+	if out.URL == nil {
+		t.Fatal("Was expecting a non nil ptr Link field")
+	}
+
+	links := *out.URL
+	if links["self"] != selfLink {
+		t.Fatalf("Was expecting self Link to equal %s, but got %s", selfLink, links["self"])
+	}
+
+	if links["related"] != relatedLink {
+		t.Fatalf("Was expecting related Link to equal %s, but got %s", relatedLink, links["related"])
+	}
+}
+
+func TestOnePayload_RelationshipLinks(t *testing.T) {
+	selfLink := "http://example.com/articles/1/relationships/author"
+	relatedLink := "http://example.com/articles/1/author"
+	sample := map[string]interface{}{
+		"data": map[string]interface{}{
+			"type": "comments",
+			"id":   "1",
+			"attributes": map[string]interface{}{
+				"body":  "First",
+				"title": "Post",
+			},
+			"relationships": map[string]interface{}{
+				"impressions": map[string]interface{}{
+					"links": map[string]string{
+						"self":    selfLink,
+						"related": relatedLink,
+					},
+				},
+			},
+		},
+	}
+
+	data, err := json.Marshal(sample)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := bytes.NewReader(data)
+
+	out := new(Comment)
+
+	if err := UnmarshalPayload(in, out); err != nil {
+		t.Fatal(err)
+	}
+
+	if out.Impressions == nil {
+		t.Fatal("Was expecting a non nil ptr Link field")
+	}
+
+	links := *out.Impressions.URL
+	if links["self"] != selfLink {
+		t.Fatalf("Was expecting self Link to equal %s, but got %s", selfLink, links["self"])
+	}
+
+	if links["related"] != relatedLink {
+		t.Fatalf("Was expecting related Link to equal %s, but got %s", relatedLink, links["related"])
+	}
+}
+
 func TestManyPayload_withLinks(t *testing.T) {
 	firstPageURL := "http://somesite.com/movies?page[limit]=50&page[offset]=50"
 	prevPageURL := "http://somesite.com/movies?page[limit]=50&page[offset]=0"
