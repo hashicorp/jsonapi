@@ -810,11 +810,11 @@ func TestOnePayload_WithRelationLinks(t *testing.T) {
 		t.Fatal("Was expecting non-empty Comments")
 	}
 
-	if out.Comments[0].Links == nil {
+	if out.Comments[0].URL == nil {
 		t.Fatal("Was expecting a non nil ptr Link field")
 	}
 
-	links := *out.Comments[0].Links
+	links := *out.Comments[0].URL
 	if links["self"] != selfLink {
 		t.Fatalf("Was expecting self Link to equal %s, but got %s", selfLink, links["self"])
 	}
@@ -854,11 +854,11 @@ func TestOnePayload_WithLinks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if out.Links == nil {
+	if out.URL == nil {
 		t.Fatal("Was expecting a non nil ptr Link field")
 	}
 
-	links := *out.Links
+	links := *out.URL
 	if links["self"] != selfLink {
 		t.Fatalf("Was expecting self Link to equal %s, but got %s", selfLink, links["self"])
 	}
@@ -902,11 +902,11 @@ func TestOnePayload_RelationshipLinks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if out.Relation == nil {
+	if out.Impressions == nil {
 		t.Fatal("Was expecting a non nil ptr Link field")
 	}
 
-	links := *out.Relation.Links
+	links := *out.Impressions.URL
 	if links["self"] != selfLink {
 		t.Fatalf("Was expecting self Link to equal %s, but got %s", selfLink, links["self"])
 	}
