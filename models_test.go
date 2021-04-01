@@ -60,7 +60,7 @@ type Comment struct {
 	ClientID    string       `jsonapi:"client-id"`
 	PostID      int          `jsonapi:"attr,post_id"`
 	Body        string       `jsonapi:"attr,body"`
-	Impressions *Impressions `jsonapi:"relation,single-relation-link"`
+	Impressions *Impressions `jsonapi:"relation,impressions"`
 	URL         *Links       `jsonapi:"links,omitempty"`
 }
 

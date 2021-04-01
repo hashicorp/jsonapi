@@ -880,7 +880,7 @@ func TestOnePayload_RelationshipLinks(t *testing.T) {
 				"title": "Post",
 			},
 			"relationships": map[string]interface{}{
-				"single-relation-link": map[string]interface{}{
+				"impressions": map[string]interface{}{
 					"links": map[string]string{
 						"self":    selfLink,
 						"related": relatedLink,
