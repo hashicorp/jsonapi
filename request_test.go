@@ -868,6 +868,54 @@ func TestOnePayload_WithLinks(t *testing.T) {
 	}
 }
 
+func TestOnePayload_RelationshipLinks(t *testing.T) {
+	selfLink := "http://example.com/articles/1/relationships/author"
+	relatedLink := "http://example.com/articles/1/author"
+	sample := map[string]interface{}{
+		"data": map[string]interface{}{
+			"type": "comments",
+			"id":   "1",
+			"attributes": map[string]interface{}{
+				"body":  "First",
+				"title": "Post",
+			},
+			"relationships": map[string]interface{}{
+				"single-relation-link": map[string]interface{}{
+					"links": map[string]string{
+						"self":    selfLink,
+						"related": relatedLink,
+					},
+				},
+			},
+		},
+	}
+
+	data, err := json.Marshal(sample)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := bytes.NewReader(data)
+
+	out := new(Comment)
+
+	if err := UnmarshalPayload(in, out); err != nil {
+		t.Fatal(err)
+	}
+
+	if out.Relation == nil {
+		t.Fatal("Was expecting a non nil ptr Link field")
+	}
+
+	links := *out.Relation.Links
+	if links["self"] != selfLink {
+		t.Fatalf("Was expecting self Link to equal %s, but got %s", selfLink, links["self"])
+	}
+
+	if links["related"] != relatedLink {
+		t.Fatalf("Was expecting related Link to equal %s, but got %s", relatedLink, links["related"])
+	}
+}
+
 func TestManyPayload_withLinks(t *testing.T) {
 	firstPageURL := "http://somesite.com/movies?page[limit]=50&page[offset]=50"
 	prevPageURL := "http://somesite.com/movies?page[limit]=50&page[offset]=0"

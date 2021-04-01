@@ -341,13 +341,23 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 					relationship can have a data node set to null (e.g. to disassociate the relationship)
 					so unmarshal and set fieldValue only if data obj is not null
 				*/
-				if relationship.Data == nil {
+
+				if relationship.Data == nil && relationship.Links == nil {
 					continue
+				}
+
+				node := &Node{}
+				if relationship.Data != nil {
+					node = relationship.Data
+				}
+
+				if relationship.Links != nil {
+					node.Links = relationship.Links
 				}
 
 				m := reflect.New(fieldValue.Type().Elem())
 				if err := unmarshalNode(
-					fullNode(relationship.Data, included),
+					fullNode(node, included),
 					m,
 					included,
 				); err != nil {
@@ -356,7 +366,6 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 				}
 
 				fieldValue.Set(m)
-
 			}
 
 		} else if annotation == annotationLinks {
