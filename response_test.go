@@ -3,6 +3,7 @@ package jsonapi
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -279,10 +280,10 @@ func TestWithOmitsEmptyAnnotationOnAttribute(t *testing.T) {
 }
 
 func TestMarshalIDPtr(t *testing.T) {
-	id, make, model := "123e4567-e89b-12d3-a456-426655440000", "Ford", "Mustang"
+	id, maik, model := "123e4567-e89b-12d3-a456-426655440000", "Ford", "Mustang"
 	car := &Car{
 		ID:    &id,
-		Make:  &make,
+		Make:  &maik,
 		Model: &model,
 	}
 
@@ -734,6 +735,32 @@ func TestMarshalPayloadWithoutIncluded(t *testing.T) {
 
 	if resp.Included != nil {
 		t.Fatalf("Encoding json response did not omit included")
+	}
+}
+
+func TestMarshalPayloadWithoutIncluded_NestedStruct(t *testing.T) {
+	data := &Post{
+		ID:       1,
+		BlogID:   2,
+		ClientID: "123e4567-e89b-12d3-a456-426655440000",
+		Title:    "Foo",
+		Body:     "Bar",
+		Meta: &PostMeta{
+			Author: "bob",
+			Age:    42,
+			Seen:   true,
+		},
+	}
+
+	out := bytes.NewBuffer(nil)
+	if err := MarshalPayloadWithoutIncluded(out, data); err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println(out.String())
+
+	resp := new(OnePayload)
+	if err := json.NewDecoder(out).Decode(resp); err != nil {
+		t.Fatal(err)
 	}
 }
 

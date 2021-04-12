@@ -51,8 +51,15 @@ type Post struct {
 	ClientID      string     `jsonapi:"client-id"`
 	Title         string     `jsonapi:"attr,title"`
 	Body          string     `jsonapi:"attr,body"`
+	Meta          *PostMeta  `jsonapi:"attr,meta"`
 	Comments      []*Comment `jsonapi:"relation,comments"`
 	LatestComment *Comment   `jsonapi:"relation,latest_comment"`
+}
+
+type PostMeta struct {
+	Author string `jsonapi:"attr,author,omitempty"`
+	Age    int    `jsonapi:"attr,age,omitempty"`
+	Seen   bool   `jsonapi:"attr,seen,omitempty"`
 }
 
 type Comment struct {

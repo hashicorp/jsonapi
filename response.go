@@ -300,6 +300,15 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				node.Attributes = make(map[string]interface{})
 			}
 
+			//empty, err := marshalAttribute(node, fieldValue, args, omitEmpty)
+			//if err != nil {
+			//	er = err
+			//	break
+			//}
+			//if empty {
+			//	continue
+			//}
+
 			if fieldValue.Type() == reflect.TypeOf(time.Time{}) {
 				t := fieldValue.Interface().(time.Time)
 
@@ -333,6 +342,27 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 						node.Attributes[args[1]] = tm.Unix()
 					}
 				}
+			} else if fieldValue.Kind() == reflect.Ptr {
+				if fieldValue.IsNil() {
+					continue
+				}
+
+				switch cVal := fieldValue.Interface().(type) {
+				case *string, *bool, *int:
+					node.Attributes[args[1]] = cVal
+				default:
+					val, err := visitModelNode(
+						cVal,
+						included,
+						sideload,
+					)
+					if err != nil {
+						er = err
+						break
+					}
+					node.Attributes[args[1]] = val
+				}
+				//node.Attributes[args[1]] = fieldValue.Interface()
 			} else {
 				// Dealing with a fieldValue that is not a time
 				emptyValue := reflect.Zero(fieldValue.Type())
@@ -472,6 +502,78 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 	}
 
 	return node, nil
+}
+
+func marshalAttribute(node *Node, fieldValue reflect.Value, args []string, omitEmpty bool) (empty bool, err error) {
+
+	if fieldValue.Type() == reflect.TypeOf(time.Time{}) {
+		return marshalTime(node, fieldValue, args, omitEmpty)
+	} else if fieldValue.Type() == reflect.TypeOf(new(time.Time)) {
+		return marshalNewTime(node, fieldValue, args, omitEmpty)
+	}
+
+	return false, nil
+}
+
+func marshalTime(node *Node, fieldValue reflect.Value, args []string, omitEmpty bool) (empty bool, err error) {
+	t := fieldValue.Interface().(time.Time)
+
+	if t.IsZero() {
+		return true, nil
+	}
+
+	var iso8601 bool
+	if len(args) > 2 {
+		for _, arg := range args[2:] {
+			switch arg {
+			case annotationISO8601:
+				iso8601 = true
+			}
+		}
+	}
+
+	if iso8601 {
+		node.Attributes[args[1]] = t.UTC().Format(iso8601TimeFormat)
+	} else {
+		node.Attributes[args[1]] = t.Unix()
+	}
+
+	return false, nil
+}
+
+func marshalNewTime(node *Node, fieldValue reflect.Value, args []string, omitEmpty bool) (empty bool, err error) {
+	var iso8601 bool
+	if len(args) > 2 {
+		for _, arg := range args[2:] {
+			switch arg {
+			case annotationISO8601:
+				iso8601 = true
+			}
+		}
+	}
+
+	// A time pointer may be nil
+	if fieldValue.IsNil() {
+		if omitEmpty {
+			return true, nil
+		}
+
+		node.Attributes[args[1]] = nil
+	} else {
+		tm := fieldValue.Interface().(*time.Time)
+
+		if tm.IsZero() && omitEmpty {
+			return true, nil
+		}
+
+		if iso8601 {
+			node.Attributes[args[1]] = tm.UTC().Format(iso8601TimeFormat)
+		} else {
+			node.Attributes[args[1]] = tm.Unix()
+		}
+	}
+
+	return false, nil
 }
 
 func toShallowNode(node *Node) *Node {
