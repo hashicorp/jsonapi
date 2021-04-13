@@ -3,7 +3,6 @@ package jsonapi
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -280,10 +279,10 @@ func TestWithOmitsEmptyAnnotationOnAttribute(t *testing.T) {
 }
 
 func TestMarshalIDPtr(t *testing.T) {
-	id, maik, model := "123e4567-e89b-12d3-a456-426655440000", "Ford", "Mustang"
+	id, make, model := "123e4567-e89b-12d3-a456-426655440000", "Ford", "Mustang"
 	car := &Car{
 		ID:    &id,
-		Make:  &maik,
+		Make:  &make,
 		Model: &model,
 	}
 
@@ -756,7 +755,12 @@ func TestMarshalPayloadWithoutIncluded_NestedStruct(t *testing.T) {
 	if err := MarshalPayloadWithoutIncluded(out, data); err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println(out.String())
+
+	expectedBody := `{"data":{"type":"posts","id":"1","client-id":"123e4567-e89b-12d3-a456-426655440000","attributes":{"blog_id":2,"body":"Bar","meta":{"type":"","attributes":{"age":42,"author":"bob","seen":true}},"title":"Foo"},"relationships":{"comments":{"data":[]},"latest_comment":{"data":null}},"links":{"comments":{"href":"https://example.com/api/blogs/0/comments","meta":{"counts":{"comments":20,"likes":4}}},"self":"https://example.com/api/blogs/0"},"meta":{"detail":"extra details regarding the blog"}}}
+`
+	if expectedBody != out.String() {
+		t.Fatal("Marshalled body not expected")
+	}
 
 	resp := new(OnePayload)
 	if err := json.NewDecoder(out).Decode(resp); err != nil {
