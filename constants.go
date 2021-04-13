@@ -13,7 +13,6 @@ const (
 	annotationRFC3339   = "rfc3339"
 	annotationSeperator = ","
 
-	rfc3339TimeFormat = "2006-01-02T15:04:05Z07:00"
 	iso8601TimeFormat = "2006-01-02T15:04:05Z"
 
 	// MediaType is the identifier for the JSON API media type
