@@ -547,29 +547,25 @@ func handleLinks(attribute interface{}, args []string, fieldValue reflect.Value)
 }
 
 func handleTime(attribute interface{}, args []string, fieldValue reflect.Value) (reflect.Value, error) {
-	var isIso8601 bool
-	var isRFC3339 bool
+	var isISO8601, isRFC3339 bool
 	v := reflect.ValueOf(attribute)
 
 	if len(args) > 2 {
 		for _, arg := range args[2:] {
 			if arg == annotationISO8601 {
-				isIso8601 = true
+				isISO8601 = true
 			} else if arg == annotationRFC3339 {
 				isRFC3339 = true
 			}
 		}
 	}
 
-	if isIso8601 {
-		var tm string
-		if v.Kind() == reflect.String {
-			tm = v.Interface().(string)
-		} else {
+	if isISO8601 {
+		if v.Kind() != reflect.String {
 			return reflect.ValueOf(time.Now()), ErrInvalidISO8601
 		}
 
-		t, err := time.Parse(iso8601TimeFormat, tm)
+		t, err := time.Parse(iso8601TimeFormat, v.Interface().(string))
 		if err != nil {
 			return reflect.ValueOf(time.Now()), ErrInvalidISO8601
 		}
@@ -582,14 +578,11 @@ func handleTime(attribute interface{}, args []string, fieldValue reflect.Value) 
 	}
 
 	if isRFC3339 {
-		var tm string
-		if v.Kind() == reflect.String {
-			tm = v.Interface().(string)
-		} else {
+		if v.Kind() != reflect.String {
 			return reflect.ValueOf(time.Now()), ErrInvalidRFC3339
 		}
 
-		t, err := time.Parse(time.RFC3339, tm)
+		t, err := time.Parse(time.RFC3339, v.Interface().(string))
 		if err != nil {
 			return reflect.ValueOf(time.Now()), ErrInvalidRFC3339
 		}
