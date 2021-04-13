@@ -67,8 +67,13 @@ type Comment struct {
 	ClientID    string       `jsonapi:"client-id"`
 	PostID      int          `jsonapi:"attr,post_id"`
 	Body        string       `jsonapi:"attr,body"`
+	Likes       []*Likes     `jsonapi:"attr,likes"`
 	Impressions *Impressions `jsonapi:"relation,impressions"`
 	URL         *Links       `jsonapi:"links,omitempty"`
+}
+
+type Likes struct {
+	Count int `jsonapi:"attr,count"`
 }
 
 type Impressions struct {

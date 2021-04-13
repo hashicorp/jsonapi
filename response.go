@@ -353,7 +353,31 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 					}
 					node.Attributes[args[1]] = val
 				}
-				//node.Attributes[args[1]] = fieldValue.Interface()
+
+			} else if fieldValue.Kind() == reflect.Slice {
+				var omitEmpty bool
+				isSlice := fieldValue.Type().Kind() == reflect.Slice
+
+				if omitEmpty &&
+					(isSlice && fieldValue.Len() < 1 ||
+						(!isSlice && fieldValue.IsNil())) {
+					continue
+				}
+
+				fmt.Println("OMAR")
+				fmt.Println(isSlice)
+
+				data, err := visitModelNodeRelationships(
+					fieldValue,
+					included,
+					sideload,
+				)
+				if err != nil {
+					er = err
+					break
+				}
+				fmt.Println(data.Data)
+
 			} else {
 				// Dealing with a fieldValue that is not a time
 				emptyValue := reflect.Zero(fieldValue.Type())

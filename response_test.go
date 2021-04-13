@@ -3,6 +3,7 @@ package jsonapi
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -761,6 +762,35 @@ func TestMarshalPayloadWithoutIncluded_NestedStruct(t *testing.T) {
 	if expectedBody != out.String() {
 		t.Fatal("Marshalled body not expected")
 	}
+
+	resp := new(OnePayload)
+	if err := json.NewDecoder(out).Decode(resp); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMarshalPayloadWithoutIncluded_NestedSlice(t *testing.T) {
+	data := &Comment{
+		ID:       1,
+		ClientID: "123e4567-e89b-12d3-a456-426655440000",
+		Body:     "Bar",
+		Likes: []*Likes{
+			&Likes{
+				Count: 1,
+			},
+			&Likes{
+				Count: 2,
+			},
+		},
+	}
+
+	out := bytes.NewBuffer(nil)
+	if err := MarshalPayloadWithoutIncluded(out, data); err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println(out.String())
+
+	//if expectedBody != out.String() { t.Fatal("Marshalled body not expected") }
 
 	resp := new(OnePayload)
 	if err := json.NewDecoder(out).Decode(resp); err != nil {
