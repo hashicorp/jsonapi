@@ -353,7 +353,9 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 						er = err
 						break
 					}
-					node.Attributes[args[1]] = val
+					if val != nil {
+						node.Attributes[args[1]] = val
+					}
 				}
 
 			} else if fieldValue.Kind() == reflect.Slice {
@@ -364,17 +366,29 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 					continue
 				}
 
-				values := []map[string]interface{}{}
-				for i := 0; i < fieldValue.Len(); i++ {
-					val, err := marshalStruct(fieldValue.Index(i).Interface())
-					if err != nil {
-						er = err
-						break
+				if fieldValue.Type() == reflect.TypeOf([]string{}) {
+					values := []string{}
+					for i := 0; i < fieldValue.Len(); i++ {
+						strAttr, ok := fieldValue.Index(i).Interface().(string)
+						if ok {
+							values = append(values, strAttr)
+						}
 					}
-
-					values = append(values, val)
+					node.Attributes[args[1]] = values
+				} else {
+					values := []map[string]interface{}{}
+					for i := 0; i < fieldValue.Len(); i++ {
+						val, err := marshalStruct(fieldValue.Index(i).Interface())
+						if err != nil {
+							er = err
+							break
+						}
+						if val != nil {
+							values = append(values, val)
+						}
+					}
+					node.Attributes[args[1]] = values
 				}
-				node.Attributes[args[1]] = values
 
 			} else {
 				// Dealing with a fieldValue that is not a time
@@ -571,12 +585,18 @@ func nodeMapValues(m *map[string]*Node) []*Node {
 
 func marshalStruct(model interface{}) (map[string]interface{}, error) {
 	value := reflect.ValueOf(model)
-	if value.IsNil() {
-		return nil, nil
+	isStruct := value.Kind() == reflect.Struct
+	var modelValue reflect.Value
+	if isStruct {
+		modelValue = value
+	} else {
+		// TODO: omar, do you want thi shere?
+		if value.IsNil() {
+			return nil, nil
+		}
+		modelValue = value.Elem()
 	}
 	attributes := map[string]interface{}{}
-
-	modelValue := value.Elem()
 
 	for i := 0; i < modelValue.NumField(); i++ {
 		structField := modelValue.Type().Field(i)

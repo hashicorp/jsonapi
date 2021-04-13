@@ -829,12 +829,12 @@ func TestMarshalPayloadWithoutIncluded_NestedSlice(t *testing.T) {
 		ID:       1,
 		ClientID: "123e4567-e89b-12d3-a456-426655440000",
 		Body:     "Bar",
-		Likes: []*Likes{
-			&Likes{
-				Count: 1,
+		Likes: []Likes{
+			Likes{
+				Count: 42,
 			},
-			&Likes{
-				Count: 2,
+			Likes{
+				Count: 42,
 			},
 		},
 	}
@@ -843,9 +843,12 @@ func TestMarshalPayloadWithoutIncluded_NestedSlice(t *testing.T) {
 	if err := MarshalPayloadWithoutIncluded(out, data); err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println(out.String())
 
-	//if expectedBody != out.String() { t.Fatal("Marshalled body not expected") }
+	expectedBody := `{"data":{"type":"comments","id":"1","client-id":"123e4567-e89b-12d3-a456-426655440000","attributes":{"body":"Bar","likes":[{"count":42},{"count":42}],"post_id":0},"relationships":{"impressions":{"data":null}}}}
+`
+	if expectedBody != out.String() {
+		t.Fatal("Marshalled body not expected")
+	}
 
 	resp := new(OnePayload)
 	if err := json.NewDecoder(out).Decode(resp); err != nil {
