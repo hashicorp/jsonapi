@@ -1,0 +1,19 @@
+version: 2.1
+jobs:
+  test:
+    docker:
+      - image: docker.mirror.hashicorp.services/circleci/golang:<< parameters.go-version >>
+    parameters:
+      go-version:
+        type: string
+    steps:
+      - checkout
+      - run: go test ./... -v
+workflows:
+  run-tests:
+    jobs:
+      - test:
+          matrix:
+            parameters:
+              go-version: ["1.11", "1.12", "1.13", "1.14", "1.15", "1.16", "latest"]
+          name: test-go-<< matrix.go-version >>
