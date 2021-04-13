@@ -348,11 +348,7 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				case *string, *bool, *int:
 					node.Attributes[args[1]] = cVal
 				default:
-					val, err := visitModelNode(
-						cVal,
-						included,
-						sideload,
-					)
+					val, err := marshalStruct(cVal)
 					if err != nil {
 						er = err
 						break
@@ -361,28 +357,24 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				}
 
 			} else if fieldValue.Kind() == reflect.Slice {
-				var omitEmpty bool
 				isSlice := fieldValue.Type().Kind() == reflect.Slice
 
-				if omitEmpty &&
-					(isSlice && fieldValue.Len() < 1 ||
-						(!isSlice && fieldValue.IsNil())) {
+				emptySlice := (isSlice && fieldValue.Len() < 1 || (!isSlice && fieldValue.IsNil()))
+				if omitEmpty && emptySlice {
 					continue
 				}
 
-				fmt.Println("OMAR")
-				fmt.Println(isSlice)
+				values := []map[string]interface{}{}
+				for i := 0; i < fieldValue.Len(); i++ {
+					val, err := marshalStruct(fieldValue.Index(i).Interface())
+					if err != nil {
+						er = err
+						break
+					}
 
-				data, err := visitModelNodeRelationships(
-					fieldValue,
-					included,
-					sideload,
-				)
-				if err != nil {
-					er = err
-					break
+					values = append(values, val)
 				}
-				fmt.Println(data.Data)
+				node.Attributes[args[1]] = values
 
 			} else {
 				// Dealing with a fieldValue that is not a time
@@ -575,6 +567,46 @@ func nodeMapValues(m *map[string]*Node) []*Node {
 	}
 
 	return nodes
+}
+
+func marshalStruct(model interface{}) (map[string]interface{}, error) {
+	value := reflect.ValueOf(model)
+	if value.IsNil() {
+		return nil, nil
+	}
+	attributes := map[string]interface{}{}
+
+	modelValue := value.Elem()
+
+	for i := 0; i < modelValue.NumField(); i++ {
+		structField := modelValue.Type().Field(i)
+		tag := structField.Tag.Get(annotationJSONAPI)
+		if tag == "" {
+			continue
+		}
+		fieldValue := modelValue.Field(i)
+
+		args := strings.Split(tag, annotationSeperator)
+
+		if len(args) < 1 {
+			return nil, ErrBadJSONAPIStructTag
+		}
+
+		annotation := args[0]
+		// we should only process attrs
+		if annotation != annotationAttribute {
+			continue
+		}
+
+		strAttr, ok := fieldValue.Interface().(string)
+		if ok {
+			attributes[args[1]] = strAttr
+		} else {
+			attributes[args[1]] = fieldValue.Interface()
+		}
+	}
+
+	return attributes, nil
 }
 
 func convertToSliceInterface(i *interface{}) ([]interface{}, error) {

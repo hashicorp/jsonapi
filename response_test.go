@@ -812,7 +812,7 @@ func TestMarshalPayloadWithoutIncluded_NestedStruct(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedBody := `{"data":{"type":"posts","id":"1","client-id":"123e4567-e89b-12d3-a456-426655440000","attributes":{"blog_id":2,"body":"Bar","meta":{"type":"","attributes":{"age":42,"author":"bob","seen":true}},"title":"Foo"},"relationships":{"comments":{"data":[]},"latest_comment":{"data":null}},"links":{"comments":{"href":"https://example.com/api/blogs/0/comments","meta":{"counts":{"comments":20,"likes":4}}},"self":"https://example.com/api/blogs/0"},"meta":{"detail":"extra details regarding the blog"}}}
+	expectedBody := `{"data":{"type":"posts","id":"1","client-id":"123e4567-e89b-12d3-a456-426655440000","attributes":{"blog_id":2,"body":"Bar","meta":{"age":42,"author":"bob","seen":true},"title":"Foo"},"relationships":{"comments":{"data":[]},"latest_comment":{"data":null}},"links":{"comments":{"href":"https://example.com/api/blogs/0/comments","meta":{"counts":{"comments":20,"likes":4}}},"self":"https://example.com/api/blogs/0"},"meta":{"detail":"extra details regarding the blog"}}}
 `
 	if expectedBody != out.String() {
 		t.Fatal("Marshalled body not expected")
