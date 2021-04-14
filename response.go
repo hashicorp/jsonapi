@@ -445,10 +445,6 @@ func marshalAttribute(node *Node, fieldValue reflect.Value, args []string) error
 		}
 	}
 
-	if node.Attributes == nil {
-		node.Attributes = make(map[string]interface{})
-	}
-
 	if fieldValue.Type() == reflect.TypeOf(time.Time{}) {
 		err = marshalHandleTime(node, fieldValue, args, iso8601, rfc3339, omitEmpty)
 	} else if fieldValue.Type() == reflect.TypeOf(new(time.Time)) {
