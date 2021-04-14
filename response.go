@@ -283,128 +283,15 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				node.ClientID = clientID
 			}
 		} else if annotation == annotationAttribute {
-			var omitEmpty, iso8601, rfc3339 bool
-
-			if len(args) > 2 {
-				for _, arg := range args[2:] {
-					switch arg {
-					case annotationOmitEmpty:
-						omitEmpty = true
-					case annotationISO8601:
-						iso8601 = true
-					case annotationRFC3339:
-						rfc3339 = true
-					}
-				}
-			}
 
 			if node.Attributes == nil {
 				node.Attributes = make(map[string]interface{})
 			}
 
-			if fieldValue.Type() == reflect.TypeOf(time.Time{}) {
-				t := fieldValue.Interface().(time.Time)
-
-				if t.IsZero() {
-					continue
-				}
-
-				if iso8601 {
-					node.Attributes[args[1]] = t.UTC().Format(iso8601TimeFormat)
-				} else if rfc3339 {
-					node.Attributes[args[1]] = t.UTC().Format(time.RFC3339)
-				} else {
-					node.Attributes[args[1]] = t.Unix()
-				}
-			} else if fieldValue.Type() == reflect.TypeOf(new(time.Time)) {
-				// A time pointer may be nil
-				if fieldValue.IsNil() {
-					if omitEmpty {
-						continue
-					}
-
-					node.Attributes[args[1]] = nil
-				} else {
-					tm := fieldValue.Interface().(*time.Time)
-
-					if tm.IsZero() && omitEmpty {
-						continue
-					}
-
-					if iso8601 {
-						node.Attributes[args[1]] = tm.UTC().Format(iso8601TimeFormat)
-					} else if rfc3339 {
-						node.Attributes[args[1]] = tm.UTC().Format(time.RFC3339)
-					} else {
-						node.Attributes[args[1]] = tm.Unix()
-					}
-				}
-			} else if fieldValue.Kind() == reflect.Ptr {
-				if fieldValue.IsNil() {
-					continue
-				}
-
-				switch cVal := fieldValue.Interface().(type) {
-				case *string, *bool, *int:
-					node.Attributes[args[1]] = cVal
-				default:
-					val, err := marshalStruct(cVal)
-					if err != nil {
-						er = err
-						break
-					}
-					if val != nil {
-						node.Attributes[args[1]] = val
-					}
-				}
-
-			} else if fieldValue.Kind() == reflect.Slice {
-				isSlice := fieldValue.Type().Kind() == reflect.Slice
-
-				emptySlice := (isSlice && fieldValue.Len() < 1 || (!isSlice && fieldValue.IsNil()))
-				if omitEmpty && emptySlice {
-					continue
-				}
-
-				if fieldValue.Type() == reflect.TypeOf([]string{}) {
-					values := []string{}
-					for i := 0; i < fieldValue.Len(); i++ {
-						strAttr, ok := fieldValue.Index(i).Interface().(string)
-						if ok {
-							values = append(values, strAttr)
-						}
-					}
-					node.Attributes[args[1]] = values
-				} else {
-					values := []map[string]interface{}{}
-					for i := 0; i < fieldValue.Len(); i++ {
-						val, err := marshalStruct(fieldValue.Index(i).Interface())
-						if err != nil {
-							er = err
-							break
-						}
-						if val != nil {
-							values = append(values, val)
-						}
-					}
-					node.Attributes[args[1]] = values
-				}
-
-			} else {
-				// Dealing with a fieldValue that is not a time
-				emptyValue := reflect.Zero(fieldValue.Type())
-
-				// See if we need to omit this field
-				if omitEmpty && reflect.DeepEqual(fieldValue.Interface(), emptyValue.Interface()) {
-					continue
-				}
-
-				strAttr, ok := fieldValue.Interface().(string)
-				if ok {
-					node.Attributes[args[1]] = strAttr
-				} else {
-					node.Attributes[args[1]] = fieldValue.Interface()
-				}
+			err := marshalAttribute(node, fieldValue, args)
+			if err != nil {
+				er = err
+				break
 			}
 		} else if annotation == annotationRelation {
 			var omitEmpty bool
@@ -538,6 +425,157 @@ func toShallowNode(node *Node) *Node {
 	}
 }
 
+func marshalAttribute(node *Node, fieldValue reflect.Value, args []string) error {
+	var omitEmpty, iso8601, rfc3339 bool
+
+	var err error
+
+	if len(args) > 2 {
+		for _, arg := range args[2:] {
+			switch arg {
+			case annotationOmitEmpty:
+				omitEmpty = true
+			case annotationISO8601:
+				iso8601 = true
+			case annotationRFC3339:
+				rfc3339 = true
+			}
+		}
+	}
+
+	if node.Attributes == nil {
+		node.Attributes = make(map[string]interface{})
+	}
+
+	if fieldValue.Type() == reflect.TypeOf(time.Time{}) {
+		err = marshalHandleTime(node, fieldValue, args, iso8601, rfc3339, omitEmpty)
+	} else if fieldValue.Type() == reflect.TypeOf(new(time.Time)) {
+		err = marshalHandleNewTime(node, fieldValue, args, iso8601, rfc3339, omitEmpty)
+	} else if fieldValue.Kind() == reflect.Ptr {
+		err = marshalHandlePtr(node, fieldValue, args, omitEmpty)
+	} else if fieldValue.Kind() == reflect.Slice {
+		err = marshalHandleSlice(node, fieldValue, args, omitEmpty)
+	} else {
+		err = marshalHandleDefault(node, fieldValue, args, omitEmpty)
+	}
+
+	return err
+}
+
+func marshalHandleTime(node *Node, fieldValue reflect.Value, args []string, iso8601, rfc3339, omitEmpty bool) error {
+	t := fieldValue.Interface().(time.Time)
+
+	if t.IsZero() {
+		return nil
+	}
+
+	if iso8601 {
+		node.Attributes[args[1]] = t.UTC().Format(iso8601TimeFormat)
+	} else if rfc3339 {
+		node.Attributes[args[1]] = t.UTC().Format(time.RFC3339)
+	} else {
+		node.Attributes[args[1]] = t.Unix()
+	}
+	return nil
+}
+
+func marshalHandleNewTime(node *Node, fieldValue reflect.Value, args []string, iso8601, rfc3339, omitEmpty bool) error {
+	// A time pointer may be nil
+	if fieldValue.IsNil() {
+		if omitEmpty {
+			return nil
+		}
+
+		node.Attributes[args[1]] = nil
+	} else {
+		tm := fieldValue.Interface().(*time.Time)
+
+		if tm.IsZero() && omitEmpty {
+			return nil
+		}
+
+		if iso8601 {
+			node.Attributes[args[1]] = tm.UTC().Format(iso8601TimeFormat)
+		} else if rfc3339 {
+			node.Attributes[args[1]] = tm.UTC().Format(time.RFC3339)
+		} else {
+			node.Attributes[args[1]] = tm.Unix()
+		}
+	}
+	return nil
+}
+
+func marshalHandlePtr(node *Node, fieldValue reflect.Value, args []string, omitEmpty bool) error {
+	if fieldValue.IsNil() {
+		return nil
+	}
+
+	switch cVal := fieldValue.Interface().(type) {
+	case *string, *bool, *int:
+		node.Attributes[args[1]] = cVal
+	default:
+		val, err := marshalStruct(cVal)
+		if err != nil {
+			return err
+		}
+		if val != nil {
+			node.Attributes[args[1]] = val
+		}
+	}
+	return nil
+}
+
+func marshalHandleSlice(node *Node, fieldValue reflect.Value, args []string, omitEmpty bool) error {
+	isSlice := fieldValue.Type().Kind() == reflect.Slice
+
+	emptySlice := (isSlice && fieldValue.Len() < 1 || (!isSlice && fieldValue.IsNil()))
+	if omitEmpty && emptySlice {
+		return nil
+	}
+
+	if fieldValue.Type() == reflect.TypeOf([]string{}) {
+		values := []string{}
+		for i := 0; i < fieldValue.Len(); i++ {
+			strAttr, ok := fieldValue.Index(i).Interface().(string)
+			if ok {
+				values = append(values, strAttr)
+			}
+		}
+		node.Attributes[args[1]] = values
+	} else {
+		values := []map[string]interface{}{}
+		for i := 0; i < fieldValue.Len(); i++ {
+			val, err := marshalStruct(fieldValue.Index(i).Interface())
+			if err != nil {
+				return err
+			}
+			if val != nil {
+				values = append(values, val)
+			}
+		}
+		node.Attributes[args[1]] = values
+	}
+	return nil
+}
+
+func marshalHandleDefault(node *Node, fieldValue reflect.Value, args []string, omitEmpty bool) error {
+	// Dealing with a fieldValue that is not a time
+	emptyValue := reflect.Zero(fieldValue.Type())
+
+	// See if we need to omit this field
+	if omitEmpty && reflect.DeepEqual(fieldValue.Interface(), emptyValue.Interface()) {
+		return nil
+	}
+
+	strAttr, ok := fieldValue.Interface().(string)
+	if ok {
+		node.Attributes[args[1]] = strAttr
+	} else {
+		node.Attributes[args[1]] = fieldValue.Interface()
+	}
+	return nil
+}
+
 func visitModelNodeRelationships(models reflect.Value, included *map[string]*Node,
 	sideload bool) (*RelationshipManyNode, error) {
 	nodes := []*Node{}
@@ -590,12 +628,12 @@ func marshalStruct(model interface{}) (map[string]interface{}, error) {
 	if isStruct {
 		modelValue = value
 	} else {
-		// TODO: omar, do you want thi shere?
 		if value.IsNil() {
 			return nil, nil
 		}
 		modelValue = value.Elem()
 	}
+
 	attributes := map[string]interface{}{}
 
 	for i := 0; i < modelValue.NumField(); i++ {
