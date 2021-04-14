@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/mitchellh/mapstructure"
 	"io"
 	"reflect"
 	"strconv"
@@ -535,11 +536,9 @@ func marshalHandleSlice(node *Node, fieldValue reflect.Value, args []string, omi
 
 	if fieldValue.Type() == reflect.TypeOf([]string{}) {
 		values := []string{}
-		for i := 0; i < fieldValue.Len(); i++ {
-			strAttr, ok := fieldValue.Index(i).Interface().(string)
-			if ok {
-				values = append(values, strAttr)
-			}
+		err := mapstructure.Decode(fieldValue.Interface(), &values)
+		if err != nil {
+			return err
 		}
 		node.Attributes[args[1]] = values
 	} else {
@@ -634,8 +633,13 @@ func marshalStruct(model interface{}) (map[string]interface{}, error) {
 		modelValue = value.Elem()
 	}
 
-	attributes := map[string]interface{}{}
+	values := map[string]interface{}{}
+	err := mapstructure.Decode(model, &values)
+	if err != nil {
+		return nil, err
+	}
 
+	attributes := map[string]interface{}{}
 	for i := 0; i < modelValue.NumField(); i++ {
 		structField := modelValue.Type().Field(i)
 		tag := structField.Tag.Get(annotationJSONAPI)
@@ -667,7 +671,7 @@ func marshalStruct(model interface{}) (map[string]interface{}, error) {
 			continue
 		}
 
-		attributes[args[1]] = fieldValue.Interface()
+		attributes[args[1]] = values[structField.Name]
 	}
 
 	return attributes, nil
