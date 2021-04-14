@@ -512,19 +512,41 @@ func marshalHandlePtr(node *Node, fieldValue reflect.Value, args []string, omitE
 		return nil
 	}
 
-	switch cVal := fieldValue.Interface().(type) {
-	case *string, *bool, *int:
-		node.Attributes[args[1]] = cVal
+	switch fieldValue.Interface().(type) {
+	case *string, *bool, *int, string, bool, int:
+		node.Attributes[args[1]] = fieldValue.Interface()
+		return nil
 	default:
-		val, err := marshalStruct(cVal)
-		if err != nil {
-			return err
-		}
-		if val != nil {
-			node.Attributes[args[1]] = val
+		if val, ok := namedType(fieldValue.Interface()); ok {
+			node.Attributes[args[1]] = val.Interface()
+			return nil
 		}
 	}
+
+	val, err := marshalStruct(fieldValue.Interface(), args[1])
+	if err != nil {
+		return err
+	}
+	if val != nil {
+		node.Attributes[args[1]] = val
+	}
 	return nil
+}
+
+func namedType(model interface{}) (reflect.Value, bool) {
+	value := reflect.ValueOf(model)
+	if value.Kind() == reflect.Struct {
+		return reflect.Value{}, false // we don't want to process any struct
+	}
+	modelValue := value.Elem()
+
+	kind := modelValue.Type().Kind()
+	if kind == reflect.String ||
+		kind == reflect.Bool ||
+		kind == reflect.Int {
+		return modelValue, true
+	}
+	return reflect.Value{}, false
 }
 
 func marshalHandleSlice(node *Node, fieldValue reflect.Value, args []string, omitEmpty bool) error {
@@ -545,7 +567,7 @@ func marshalHandleSlice(node *Node, fieldValue reflect.Value, args []string, omi
 	} else {
 		values := []map[string]interface{}{}
 		for i := 0; i < fieldValue.Len(); i++ {
-			val, err := marshalStruct(fieldValue.Index(i).Interface())
+			val, err := marshalStruct(fieldValue.Index(i).Interface(), args[1])
 			if err != nil {
 				return err
 			}
@@ -621,9 +643,10 @@ func nodeMapValues(m *map[string]*Node) []*Node {
 	return nodes
 }
 
-func marshalStruct(model interface{}) (map[string]interface{}, error) {
+func marshalStruct(model interface{}, arg string) (map[string]interface{}, error) {
 	value := reflect.ValueOf(model)
 	isStruct := value.Kind() == reflect.Struct
+
 	var modelValue reflect.Value
 	if isStruct {
 		modelValue = value
@@ -633,6 +656,7 @@ func marshalStruct(model interface{}) (map[string]interface{}, error) {
 		}
 		modelValue = value.Elem()
 	}
+	attributes := map[string]interface{}{}
 
 	values := map[string]interface{}{}
 	err := mapstructure.Decode(model, &values)
@@ -640,7 +664,6 @@ func marshalStruct(model interface{}) (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	attributes := map[string]interface{}{}
 	for i := 0; i < modelValue.NumField(); i++ {
 		structField := modelValue.Type().Field(i)
 		tag := structField.Tag.Get(annotationJSONAPI)
