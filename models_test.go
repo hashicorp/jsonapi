@@ -71,7 +71,9 @@ type Comment struct {
 }
 
 type Likes struct {
-	Count int `jsonapi:"attr,count"`
+	Count      int    `jsonapi:"attr,count"`
+	IsFavorite bool   `jsonapi:"attr,is-favorite"`
+	Email      string `jsonapi:"attr,email,omitempty"`
 }
 
 type Impressions struct {

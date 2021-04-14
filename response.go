@@ -651,17 +651,23 @@ func marshalStruct(model interface{}) (map[string]interface{}, error) {
 		}
 
 		annotation := args[0]
+		var omitEmpty bool
+
+		//add support for 'omitempty' struct tag for marshaling as absent
+		if len(args) > 2 {
+			omitEmpty = args[2] == annotationOmitEmpty
+		}
+
 		// we should only process attrs
 		if annotation != annotationAttribute {
 			continue
 		}
 
-		strAttr, ok := fieldValue.Interface().(string)
-		if ok {
-			attributes[args[1]] = strAttr
-		} else {
-			attributes[args[1]] = fieldValue.Interface()
+		if omitEmpty && fieldValue.IsZero() {
+			continue
 		}
+
+		attributes[args[1]] = fieldValue.Interface()
 	}
 
 	return attributes, nil

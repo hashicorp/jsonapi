@@ -831,10 +831,13 @@ func TestMarshalPayloadWithoutIncluded_NestedSlice(t *testing.T) {
 		Body:     "Bar",
 		Likes: []Likes{
 			Likes{
-				Count: 42,
+				Count:      42,
+				IsFavorite: true,
+				Email:      "json@hashicorp.com",
 			},
 			Likes{
-				Count: 42,
+				Count:      42,
+				IsFavorite: false,
 			},
 		},
 	}
@@ -844,7 +847,7 @@ func TestMarshalPayloadWithoutIncluded_NestedSlice(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedBody := `{"data":{"type":"comments","id":"1","client-id":"123e4567-e89b-12d3-a456-426655440000","attributes":{"body":"Bar","likes":[{"count":42},{"count":42}],"post_id":0},"relationships":{"impressions":{"data":null}}}}
+	expectedBody := `{"data":{"type":"comments","id":"1","client-id":"123e4567-e89b-12d3-a456-426655440000","attributes":{"body":"Bar","likes":[{"count":42,"email":"json@hashicorp.com","is-favorite":true},{"count":42,"is-favorite":false}],"post_id":0},"relationships":{"impressions":{"data":null}}}}
 `
 	if expectedBody != out.String() {
 		t.Fatal("Marshalled body not expected")
