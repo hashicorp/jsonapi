@@ -49,8 +49,15 @@ type Post struct {
 	ClientID      string     `jsonapi:"client-id"`
 	Title         string     `jsonapi:"attr,title"`
 	Body          string     `jsonapi:"attr,body"`
+	Meta          *PostMeta  `jsonapi:"attr,meta"`
 	Comments      []*Comment `jsonapi:"relation,comments"`
 	LatestComment *Comment   `jsonapi:"relation,latest_comment"`
+}
+
+type PostMeta struct {
+	Author string `json:"author,omitempty"`
+	Age    int    `json:"age,omitempty"`
+	Seen   bool   `json:"seen,omitempty"`
 }
 
 type Comment struct {
@@ -58,8 +65,14 @@ type Comment struct {
 	ClientID    string       `jsonapi:"client-id"`
 	PostID      int          `jsonapi:"attr,post_id"`
 	Body        string       `jsonapi:"attr,body"`
+	Likes       []Likes      `jsonapi:"attr,likes"`
 	Impressions *Impressions `jsonapi:"relation,impressions"`
 	URL         *Links       `jsonapi:"links,omitempty"`
+}
+type Likes struct {
+	Count      int    `json:"count"`
+	IsFavorite bool   `json:"is-favorite"`
+	Email      string `json:"email,omitempty"`
 }
 
 type Impressions struct {

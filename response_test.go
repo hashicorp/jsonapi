@@ -1023,3 +1023,69 @@ func testBlog() *Blog {
 		},
 	}
 }
+
+func TestMarshalPayloadWithoutIncluded_NestedStruct(t *testing.T) {
+	data := &Post{
+		ID:       1,
+		BlogID:   2,
+		ClientID: "123e4567-e89b-12d3-a456-426655440000",
+		Title:    "Foo",
+		Body:     "Bar",
+		Meta: &PostMeta{
+			Author: "bob",
+			Age:    42,
+			Seen:   true,
+		},
+	}
+
+	out := bytes.NewBuffer(nil)
+	if err := MarshalPayloadWithoutIncluded(out, data); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedBody := `{"data":{"type":"posts","id":"1","client-id":"123e4567-e89b-12d3-a456-426655440000","attributes":{"blog_id":2,"body":"Bar","meta":{"author":"bob","age":42,"seen":true},"title":"Foo"},"relationships":{"comments":{"data":[]},"latest_comment":{"data":null}},"links":{"comments":{"href":"https://example.com/api/blogs/0/comments","meta":{"counts":{"comments":20,"likes":4}}},"self":"https://example.com/api/blogs/0"},"meta":{"detail":"extra details regarding the blog"}}}
+`
+	if expectedBody != out.String() {
+		t.Fatal("Marshalled body not expected")
+	}
+
+	resp := new(OnePayload)
+	if err := json.NewDecoder(out).Decode(resp); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMarshalPayloadWithoutIncluded_NestedSlice(t *testing.T) {
+	data := &Comment{
+		ID:       1,
+		ClientID: "123e4567-e89b-12d3-a456-426655440000",
+		Body:     "Bar",
+		Likes: []Likes{
+			Likes{
+				Count:      42,
+				IsFavorite: true,
+				Email:      "json@hashicorp.com",
+			},
+			Likes{
+				Count:      42,
+				IsFavorite: false,
+			},
+		},
+	}
+
+	out := bytes.NewBuffer(nil)
+	if err := MarshalPayloadWithoutIncluded(out, data); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedBody := `{"data":{"type":"comments","id":"1","client-id":"123e4567-e89b-12d3-a456-426655440000","attributes":{"body":"Bar","likes":[{"count":42,"is-favorite":true,"email":"json@hashicorp.com"},{"count":42,"is-favorite":false}],"post_id":0},"relationships":{"impressions":{"data":null}}}}
+`
+	if expectedBody != out.String() {
+		t.Fatal("Marshalled body not expected")
+	}
+
+	resp := new(OnePayload)
+	if err := json.NewDecoder(out).Decode(resp); err != nil {
+		t.Fatal(err)
+	}
+}
