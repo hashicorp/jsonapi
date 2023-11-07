@@ -106,7 +106,7 @@ func UnmarshalPayload(in io.Reader, model interface{}) error {
 			includedMap[key] = included
 		}
 
-		return unmarshalNode(payload.Data, reflect.ValueOf(model), &includedMap)
+		return unmarshalNode(payload.Data, reflect.ValueOf(model), includedMap)
 	}
 	return unmarshalNode(payload.Data, reflect.ValueOf(model), nil)
 }
@@ -132,7 +132,7 @@ func UnmarshalManyPayload(in io.Reader, t reflect.Type) ([]interface{}, error) {
 
 	for _, data := range payload.Data {
 		model := reflect.New(t.Elem())
-		err := unmarshalNode(data, model, &includedMap)
+		err := unmarshalNode(data, model, includedMap)
 		if err != nil {
 			return nil, err
 		}
@@ -263,7 +263,7 @@ func getStructTags(field reflect.StructField) ([]string, error) {
 
 // unmarshalNodeMaybeChoice populates a model that may or may not be
 // a choice type struct that corresponds to a polyrelation or relation
-func unmarshalNodeMaybeChoice(m *reflect.Value, data *Node, annotation string, choiceTypeMapping map[string]structFieldIndex, included *map[string]*Node) error {
+func unmarshalNodeMaybeChoice(m *reflect.Value, data *Node, annotation string, choiceTypeMapping map[string]structFieldIndex, included map[string]*Node) error {
 	// This will hold either the value of the choice type model or the actual
 	// model, depending on annotation
 	var actualModel = *m
@@ -300,7 +300,7 @@ func unmarshalNodeMaybeChoice(m *reflect.Value, data *Node, annotation string, c
 	return nil
 }
 
-func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) (err error) {
+func unmarshalNode(data *Node, model reflect.Value, included map[string]*Node) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("data is not a jsonapi representation of '%v'", model.Type())
@@ -534,11 +534,11 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 	return er
 }
 
-func fullNode(n *Node, included *map[string]*Node) *Node {
+func fullNode(n *Node, included map[string]*Node) *Node {
 	includedKey := fmt.Sprintf("%s,%s", n.Type, n.ID)
 
-	if included != nil && (*included)[includedKey] != nil {
-		return (*included)[includedKey]
+	if included != nil && (included)[includedKey] != nil {
+		return (included)[includedKey]
 	}
 
 	return n

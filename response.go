@@ -3,12 +3,8 @@ package jsonapi
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"reflect"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var (
@@ -133,15 +129,14 @@ func MarshalPayloadWithoutIncluded(w io.Writer, model interface{}) error {
 // payload and doesn't write out results. Useful is you use your JSON rendering
 // library.
 func marshalOne(model interface{}) (*OnePayload, error) {
-	included := make(map[string]*Node)
-
-	rootNode, err := visitModelNode(model, &included, true)
+	var included = make(map[string]*Node)
+	rootNode, err := visitModelNode(model, included, true)
 	if err != nil {
 		return nil, err
 	}
 	payload := &OnePayload{Data: rootNode}
 
-	payload.Included = nodeMapValues(&included)
+	payload.Included = nodeMapValues(included)
 
 	return payload, nil
 }
@@ -153,16 +148,19 @@ func marshalMany(models []interface{}) (*ManyPayload, error) {
 	payload := &ManyPayload{
 		Data: []*Node{},
 	}
-	included := map[string]*Node{}
+
+	included := make(map[string]*Node)
 
 	for _, model := range models {
-		node, err := visitModelNode(model, &included, true)
+		var node *Node
+		var err error
+		node, err = visitModelNode(model, included, true)
 		if err != nil {
 			return nil, err
 		}
 		payload.Data = append(payload.Data, node)
 	}
-	payload.Included = nodeMapValues(&included)
+	payload.Included = nodeMapValues(included)
 
 	return payload, nil
 }
@@ -174,7 +172,7 @@ func marshalMany(models []interface{}) (*ManyPayload, error) {
 // related records. This method will serialize a single struct
 // pointer into an embedded json response. In other words, there
 // will be no, "included", array in the json all relationships will
-// be serailized inline in the data.
+// be serialized inline in the data.
 //
 // However, in tests, you may want to construct payloads to post
 // to create methods that are embedded to most closely resemble
@@ -193,443 +191,22 @@ func MarshalOnePayloadEmbedded(w io.Writer, model interface{}) error {
 	return json.NewEncoder(w).Encode(payload)
 }
 
-// selectChoiceTypeStructField returns the first non-nil struct pointer field in the
-// specified struct value that has a jsonapi type field defined within it.
-// An error is returned if there are no fields matching that definition.
-func selectChoiceTypeStructField(structValue reflect.Value) (reflect.Value, error) {
-	for i := 0; i < structValue.NumField(); i++ {
-		choiceFieldValue := structValue.Field(i)
-		choiceTypeField := choiceFieldValue.Type()
-
-		// Must be a pointer
-		if choiceTypeField.Kind() != reflect.Ptr {
-			continue
-		}
-
-		// Must not be nil
-		if choiceFieldValue.IsNil() {
-			continue
-		}
-
-		subtype := choiceTypeField.Elem()
-		_, err := jsonapiTypeOfModel(subtype)
-		if err == nil {
-			return choiceFieldValue, nil
-		}
-	}
-
-	return reflect.Value{}, errors.New("no non-nil choice field was found in the specified struct")
-}
-
-func visitModelNode(model interface{}, included *map[string]*Node,
+func visitModelNode(model interface{}, included map[string]*Node,
 	sideload bool) (*Node, error) {
-	node := new(Node)
 
-	var er error
-	value := reflect.ValueOf(model)
-	if value.IsNil() {
-		return nil, nil
+	visitor := &modelVisitor{
+		Included: included,
+		Sideload: sideload,
 	}
 
-	modelValue := value.Elem()
-	modelType := value.Type().Elem()
-
-	for i := 0; i < modelValue.NumField(); i++ {
-		fieldValue := modelValue.Field(i)
-		structField := modelValue.Type().Field(i)
-		tag := structField.Tag.Get(annotationJSONAPI)
-		if tag == "" {
-			continue
-		}
-
-		fieldType := modelType.Field(i)
-
-		args := strings.Split(tag, annotationSeparator)
-
-		if len(args) < 1 {
-			er = ErrBadJSONAPIStructTag
-			break
-		}
-
-		annotation := args[0]
-
-		if (annotation == annotationClientID && len(args) != 1) ||
-			(annotation != annotationClientID && len(args) < 2) {
-			er = ErrBadJSONAPIStructTag
-			break
-		}
-
-		if annotation == annotationPrimary {
-			v := fieldValue
-
-			// Deal with PTRS
-			var kind reflect.Kind
-			if fieldValue.Kind() == reflect.Ptr {
-				kind = fieldType.Type.Elem().Kind()
-				v = reflect.Indirect(fieldValue)
-			} else {
-				kind = fieldType.Type.Kind()
-			}
-
-			// Handle allowed types
-			switch kind {
-			case reflect.String:
-				node.ID = v.Interface().(string)
-			case reflect.Int:
-				node.ID = strconv.FormatInt(int64(v.Interface().(int)), 10)
-			case reflect.Int8:
-				node.ID = strconv.FormatInt(int64(v.Interface().(int8)), 10)
-			case reflect.Int16:
-				node.ID = strconv.FormatInt(int64(v.Interface().(int16)), 10)
-			case reflect.Int32:
-				node.ID = strconv.FormatInt(int64(v.Interface().(int32)), 10)
-			case reflect.Int64:
-				node.ID = strconv.FormatInt(v.Interface().(int64), 10)
-			case reflect.Uint:
-				node.ID = strconv.FormatUint(uint64(v.Interface().(uint)), 10)
-			case reflect.Uint8:
-				node.ID = strconv.FormatUint(uint64(v.Interface().(uint8)), 10)
-			case reflect.Uint16:
-				node.ID = strconv.FormatUint(uint64(v.Interface().(uint16)), 10)
-			case reflect.Uint32:
-				node.ID = strconv.FormatUint(uint64(v.Interface().(uint32)), 10)
-			case reflect.Uint64:
-				node.ID = strconv.FormatUint(v.Interface().(uint64), 10)
-			default:
-				// We had a JSON float (numeric), but our field was not one of the
-				// allowed numeric types
-				er = ErrBadJSONAPIID
-			}
-
-			if er != nil {
-				break
-			}
-
-			node.Type = args[1]
-		} else if annotation == annotationClientID {
-			clientID := fieldValue.String()
-			if clientID != "" {
-				node.ClientID = clientID
-			}
-		} else if annotation == annotationAttribute {
-			var omitEmpty, iso8601, rfc3339 bool
-
-			if len(args) > 2 {
-				for _, arg := range args[2:] {
-					switch arg {
-					case annotationOmitEmpty:
-						omitEmpty = true
-					case annotationISO8601:
-						iso8601 = true
-					case annotationRFC3339:
-						rfc3339 = true
-					}
-				}
-			}
-
-			if node.Attributes == nil {
-				node.Attributes = make(map[string]interface{})
-			}
-
-			if fieldValue.Type() == reflect.TypeOf(time.Time{}) {
-				t := fieldValue.Interface().(time.Time)
-
-				if t.IsZero() {
-					continue
-				}
-
-				if iso8601 {
-					node.Attributes[args[1]] = t.UTC().Format(iso8601TimeFormat)
-				} else if rfc3339 {
-					node.Attributes[args[1]] = t.UTC().Format(time.RFC3339)
-				} else {
-					node.Attributes[args[1]] = t.Unix()
-				}
-			} else if fieldValue.Type() == reflect.TypeOf(new(time.Time)) {
-				// A time pointer may be nil
-				if fieldValue.IsNil() {
-					if omitEmpty {
-						continue
-					}
-
-					node.Attributes[args[1]] = nil
-				} else {
-					tm := fieldValue.Interface().(*time.Time)
-
-					if tm.IsZero() && omitEmpty {
-						continue
-					}
-
-					if iso8601 {
-						node.Attributes[args[1]] = tm.UTC().Format(iso8601TimeFormat)
-					} else if rfc3339 {
-						node.Attributes[args[1]] = tm.UTC().Format(time.RFC3339)
-					} else {
-						node.Attributes[args[1]] = tm.Unix()
-					}
-				}
-			} else {
-				// Dealing with a fieldValue that is not a time
-				emptyValue := reflect.Zero(fieldValue.Type())
-
-				// See if we need to omit this field
-				if omitEmpty && reflect.DeepEqual(fieldValue.Interface(), emptyValue.Interface()) {
-					continue
-				}
-
-				strAttr, ok := fieldValue.Interface().(string)
-				if ok {
-					node.Attributes[args[1]] = strAttr
-				} else {
-					node.Attributes[args[1]] = fieldValue.Interface()
-				}
-			}
-		} else if annotation == annotationRelation || annotation == annotationPolyRelation {
-			var omitEmpty bool
-
-			//add support for 'omitempty' struct tag for marshaling as absent
-			if len(args) > 2 {
-				omitEmpty = args[2] == annotationOmitEmpty
-			}
-
-			isSlice := fieldValue.Type().Kind() == reflect.Slice
-			if omitEmpty &&
-				(isSlice && fieldValue.Len() < 1 ||
-					(!isSlice && fieldValue.IsNil())) {
-				continue
-			}
-
-			if annotation == annotationPolyRelation {
-				// for polyrelation, we'll snoop out the actual relation model
-				// through the choice type value by choosing the first non-nil
-				// field that has a jsonapi type annotation and overwriting
-				// `fieldValue` so normal annotation-assisted marshaling
-				// can continue
-				if !isSlice {
-					choiceValue := fieldValue
-
-					// must be a pointer type
-					if choiceValue.Type().Kind() != reflect.Ptr {
-						er = ErrUnexpectedType
-						break
-					}
-
-					if choiceValue.IsNil() {
-						fieldValue = reflect.ValueOf(nil)
-					}
-					structValue := choiceValue.Elem()
-
-					// Short circuit if field is omitted from model
-					if !structValue.IsValid() {
-						break
-					}
-
-					if found, err := selectChoiceTypeStructField(structValue); err == nil {
-						fieldValue = found
-					}
-				} else {
-					// A slice polyrelation field can be... polymorphic... meaning
-					// that we might snoop different types within each slice element.
-					// Each snooped value will added to this collection and then
-					// the recursion will take care of the rest. The only special case
-					// is nil. For that, we'll just choose the first
-					collection := make([]interface{}, 0)
-
-					for i := 0; i < fieldValue.Len(); i++ {
-						itemValue := fieldValue.Index(i)
-						// Once again, must be a pointer type
-						if itemValue.Type().Kind() != reflect.Ptr {
-							er = ErrUnexpectedType
-							break
-						}
-
-						if itemValue.IsNil() {
-							er = ErrUnexpectedNil
-							break
-						}
-
-						structValue := itemValue.Elem()
-
-						if found, err := selectChoiceTypeStructField(structValue); err == nil {
-							collection = append(collection, found.Interface())
-						}
-					}
-
-					if er != nil {
-						break
-					}
-
-					fieldValue = reflect.ValueOf(collection)
-				}
-			}
-
-			if node.Relationships == nil {
-				node.Relationships = make(map[string]interface{})
-			}
-
-			var relLinks *Links
-			if linkableModel, ok := model.(RelationshipLinkable); ok {
-				relLinks = linkableModel.JSONAPIRelationshipLinks(args[1])
-			}
-
-			var relMeta *Meta
-			if metableModel, ok := model.(RelationshipMetable); ok {
-				relMeta = metableModel.JSONAPIRelationshipMeta(args[1])
-			}
-
-			if isSlice {
-				// to-many relationship
-				relationship, err := visitModelNodeRelationships(
-					fieldValue,
-					included,
-					sideload,
-				)
-				if err != nil {
-					er = err
-					break
-				}
-				relationship.Links = relLinks
-				relationship.Meta = relMeta
-
-				if sideload {
-					shallowNodes := []*Node{}
-					for _, n := range relationship.Data {
-						appendIncluded(included, n)
-						shallowNodes = append(shallowNodes, toShallowNode(n))
-					}
-
-					node.Relationships[args[1]] = &RelationshipManyNode{
-						Data:  shallowNodes,
-						Links: relationship.Links,
-						Meta:  relationship.Meta,
-					}
-				} else {
-					node.Relationships[args[1]] = relationship
-				}
-			} else {
-				// to-one relationships
-
-				// Handle null relationship case
-				if fieldValue.IsNil() {
-					node.Relationships[args[1]] = &RelationshipOneNode{Data: nil}
-					continue
-				}
-
-				relationship, err := visitModelNode(
-					fieldValue.Interface(),
-					included,
-					sideload,
-				)
-				if err != nil {
-					er = err
-					break
-				}
-
-				if sideload {
-					appendIncluded(included, relationship)
-					node.Relationships[args[1]] = &RelationshipOneNode{
-						Data:  toShallowNode(relationship),
-						Links: relLinks,
-						Meta:  relMeta,
-					}
-				} else {
-					node.Relationships[args[1]] = &RelationshipOneNode{
-						Data:  relationship,
-						Links: relLinks,
-						Meta:  relMeta,
-					}
-				}
-			}
-		} else if annotation == annotationLinks {
-			// Nothing. Ignore this field, as Links fields are only for unmarshaling requests.
-			// The Linkable interface methods are used for marshaling data in a response.
-		} else {
-			er = ErrBadJSONAPIStructTag
-			break
-		}
-	}
-
-	if er != nil {
-		return nil, er
-	}
-
-	if linkableModel, isLinkable := model.(Linkable); isLinkable {
-		jl := linkableModel.JSONAPILinks()
-		if er := jl.validate(); er != nil {
-			return nil, er
-		}
-		node.Links = linkableModel.JSONAPILinks()
-	}
-
-	if metableModel, ok := model.(Metable); ok {
-		node.Meta = metableModel.JSONAPIMeta()
-	}
-
-	return node, nil
+	return visitor.Visit(model)
 }
 
-// toShallowNode takes a node and returns a shallow version of the node.
-// If the ID is empty, we include attributes into the shallow version.
-//
-// An example of where this is useful would be if an object
-// within a relationship can be created at the same time as
-// the root node.
-//
-// This is not 1.0 jsonapi spec compliant--it's a bespoke variation on
-// resource object identifiers discussed in the pending 1.1 spec.
-func toShallowNode(node *Node) *Node {
-	ret := &Node{Type: node.Type}
-	if node.ID == "" {
-		ret.Attributes = node.Attributes
-	} else {
-		ret.ID = node.ID
-	}
-	return ret
-}
-
-func visitModelNodeRelationships(models reflect.Value, included *map[string]*Node,
-	sideload bool) (*RelationshipManyNode, error) {
-	nodes := []*Node{}
-
-	for i := 0; i < models.Len(); i++ {
-		model := models.Index(i)
-		if !model.IsValid() || model.IsNil() {
-			return nil, ErrUnexpectedNil
-		}
-
-		n := model.Interface()
-
-		node, err := visitModelNode(n, included, sideload)
-		if err != nil {
-			return nil, err
-		}
-
-		nodes = append(nodes, node)
-	}
-
-	return &RelationshipManyNode{Data: nodes}, nil
-}
-
-func appendIncluded(m *map[string]*Node, nodes ...*Node) {
-	included := *m
-
-	for _, n := range nodes {
-		k := fmt.Sprintf("%s,%s", n.Type, n.ID)
-
-		if _, hasNode := included[k]; hasNode {
-			continue
-		}
-
-		included[k] = n
-	}
-}
-
-func nodeMapValues(m *map[string]*Node) []*Node {
-	mp := *m
-	nodes := make([]*Node, len(mp))
+func nodeMapValues(m map[string]*Node) []*Node {
+	nodes := make([]*Node, len(m))
 
 	i := 0
-	for _, n := range mp {
+	for _, n := range m {
 		nodes[i] = n
 		i++
 	}
