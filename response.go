@@ -30,6 +30,10 @@ var (
 	ErrUnexpectedNil = errors.New("slice of struct pointers cannot contain nil")
 )
 
+type Marshaler interface {
+	MarshalJSON() (*Node, error)
+}
+
 // MarshalPayload writes a jsonapi response for one or many records. The
 // related records are sideloaded into the "included" array. If this method is
 // given a struct pointer as an argument it will serialize in the form
@@ -229,6 +233,15 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 	value := reflect.ValueOf(model)
 	if value.IsNil() {
 		return nil, nil
+	}
+
+	if m, ok := model.(Marshaler); ok {
+		node, err := m.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+
+		return node, nil
 	}
 
 	modelValue := value.Elem()
