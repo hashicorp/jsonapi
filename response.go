@@ -233,6 +233,12 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 
 	modelValue := value.Elem()
 	modelType := value.Type().Elem()
+	nullFields := []string{}
+	if _, ok := modelType.FieldByName("NullFields"); ok {
+		if modelValue.FieldByName("NullFields").Kind() == reflect.Slice {
+			nullFields = modelValue.FieldByName("NullFields").Interface().([]string)
+		}
+	}
 
 	for i := 0; i < modelValue.NumField(); i++ {
 		fieldValue := modelValue.Field(i)
@@ -348,7 +354,7 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 			} else if fieldValue.Type() == reflect.TypeOf(new(time.Time)) {
 				// A time pointer may be nil
 				if fieldValue.IsNil() {
-					if omitEmpty {
+					if omitEmpty && !stringInSlice(nullFields, structField.Name) {
 						continue
 					}
 
@@ -373,7 +379,7 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				emptyValue := reflect.Zero(fieldValue.Type())
 
 				// See if we need to omit this field
-				if omitEmpty && reflect.DeepEqual(fieldValue.Interface(), emptyValue.Interface()) {
+				if omitEmpty && reflect.DeepEqual(fieldValue.Interface(), emptyValue.Interface()) && !stringInSlice(nullFields, structField.Name) {
 					continue
 				}
 
@@ -647,4 +653,13 @@ func convertToSliceInterface(i *interface{}) ([]interface{}, error) {
 		response = append(response, vals.Index(x).Interface())
 	}
 	return response, nil
+}
+
+func stringInSlice(s []string, v string) bool {
+	for _, field := range s {
+		if field == v {
+			return true
+		}
+	}
+	return false
 }

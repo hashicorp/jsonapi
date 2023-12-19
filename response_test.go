@@ -518,6 +518,47 @@ func TestWithOmitsEmptyAnnotationOnAttribute(t *testing.T) {
 	}
 }
 
+func TestOmitsEmptyAnnotationAndNullFieldOnAttribute(t *testing.T) {
+	type Author struct{}
+
+	type Book struct {
+		ID          int        `jsonapi:"primary,books"`
+		Name        string     `jsonapi:"attr,name"`
+		Author      *Author    `jsonapi:"attr,author,omitempty"`
+		PublishedAt *time.Time `jsonapi:"attr,published_at,omitempty"`
+
+		NullFields []string
+	}
+
+	book := &Book{
+		ID:          123,
+		Name:        "The Confidence Man",
+		PublishedAt: nil,
+
+		NullFields: []string{"PublishedAt"},
+	}
+
+	out := bytes.NewBuffer(nil)
+	if err := MarshalPayload(out, book); err != nil {
+		t.Fatal(err)
+	}
+
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &jsonData); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := jsonData["data"].(map[string]interface{})
+	attributes := payload["attributes"].(map[string]interface{})
+	if _, ok := attributes["published_at"]; !ok {
+		t.Fatal("Was expecting the data.attributes.published_at to have NOT been omitted")
+	}
+
+	if _, ok := attributes["author"]; ok {
+		t.Fatal("Was expecting the data.attributes.author to have been omitted")
+	}
+}
+
 func TestMarshalIDPtr(t *testing.T) {
 	id, make, model := "123e4567-e89b-12d3-a456-426655440000", "Ford", "Mustang"
 	car := &Car{
