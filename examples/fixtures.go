@@ -1,12 +1,10 @@
 package main
 
-import "time"
-
 func fixtureBlogCreate(i int) *Blog {
 	return &Blog{
 		ID:        1 * i,
 		Title:     "Title 1",
-		CreatedAt: time.Now(),
+		CreatedAt: nil,
 		Posts: []*Post{
 			{
 				ID:    1 * i,

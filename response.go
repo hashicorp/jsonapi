@@ -30,8 +30,8 @@ var (
 	ErrUnexpectedNil = errors.New("slice of struct pointers cannot contain nil")
 )
 
-type Marshaler interface {
-	MarshalJSON() (*Node, error)
+type AttributeMarshaler interface {
+	MarshalAttribute() (interface{}, error)
 }
 
 // MarshalPayload writes a jsonapi response for one or many records. The
@@ -235,15 +235,6 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 		return nil, nil
 	}
 
-	if m, ok := model.(Marshaler); ok {
-		node, err := m.MarshalJSON()
-		if err != nil {
-			return nil, err
-		}
-
-		return node, nil
-	}
-
 	modelValue := value.Elem()
 	modelType := value.Type().Elem()
 
@@ -342,6 +333,19 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 
 			if node.Attributes == nil {
 				node.Attributes = make(map[string]interface{})
+			}
+
+			if m, ok := fieldValue.Interface().(AttributeMarshaler); ok {
+				if omitEmpty {
+					continue
+				}
+
+				a, err := m.MarshalAttribute()
+				if err != nil {
+					return nil, err
+				}
+				node.Attributes[args[1]] = a
+				continue
 			}
 
 			if fieldValue.Type() == reflect.TypeOf(time.Time{}) {

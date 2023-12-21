@@ -1,21 +1,38 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/hashicorp/jsonapi"
 )
 
+type UnsetableTime struct {
+	Value *time.Time
+}
+
+func (t *UnsetableTime) MarshalAttribute() (interface{}, error) {
+	if t == nil {
+		return nil, nil
+	}
+
+	if t.Value == nil {
+		return json.RawMessage(nil), nil
+	} else {
+		return t.Value.Unix(), nil
+	}
+}
+
 // Blog is a model representing a blog site
 type Blog struct {
-	ID            int       `jsonapi:"primary,blogs"`
-	Title         string    `jsonapi:"attr,title"`
-	Posts         []*Post   `jsonapi:"relation,posts"`
-	CurrentPost   *Post     `jsonapi:"relation,current_post"`
-	CurrentPostID int       `jsonapi:"attr,current_post_id"`
-	CreatedAt     time.Time `jsonapi:"attr,created_at"`
-	ViewCount     int       `jsonapi:"attr,view_count"`
+	ID            int            `jsonapi:"primary,blogs"`
+	Title         string         `jsonapi:"attr,title"`
+	Posts         []*Post        `jsonapi:"relation,posts"`
+	CurrentPost   *Post          `jsonapi:"relation,current_post"`
+	CurrentPostID int            `jsonapi:"attr,current_post_id"`
+	CreatedAt     *UnsetableTime `jsonapi:"attr,created_at,omitempty"`
+	ViewCount     int            `jsonapi:"attr,view_count"`
 }
 
 // Post is a model representing a post on a blog
