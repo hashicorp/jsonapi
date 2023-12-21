@@ -36,10 +36,6 @@ var (
 	ErrTypeNotFound = errors.New("no primary type annotation found on model")
 )
 
-type Unmarshaler interface {
-	UnmarshalJSON([]byte) error
-}
-
 // ErrUnsupportedPtrType is returned when the Struct field was a pointer but
 // the JSON value was of a different type
 type ErrUnsupportedPtrType struct {
@@ -313,19 +309,6 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 
 	modelValue := model.Elem()
 	modelType := modelValue.Type()
-
-	if m, ok := model.Interface().(Unmarshaler); ok {
-		data, err := json.Marshal(model)
-		if err != nil {
-			return err
-		}
-
-		if err := m.UnmarshalJSON(data); err != nil {
-			return err
-		}
-
-		return nil
-	}
 
 	var er error
 
