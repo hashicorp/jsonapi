@@ -335,25 +335,30 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				node.Attributes = make(map[string]interface{})
 			}
 
-			if m, ok := fieldValue.Interface().(AttributeMarshaler); ok {
-				if omitEmpty {
+			// See if we need to omit this field
+			if omitEmpty {
+				if fieldValue.IsNil() {
 					continue
 				}
 
+				emptyValue := reflect.Zero(fieldValue.Type())
+				if reflect.DeepEqual(fieldValue.Interface(), emptyValue.Interface()) {
+					continue
+				}
+			}
+
+			if m, ok := fieldValue.Interface().(AttributeMarshaler); ok {
 				a, err := m.MarshalAttribute()
 				if err != nil {
 					return nil, err
 				}
-				node.Attributes[args[1]] = a
-				continue
+
+				fieldValue = reflect.ValueOf(a)
+				fmt.Println(fieldValue.Type())
 			}
 
 			if fieldValue.Type() == reflect.TypeOf(time.Time{}) {
 				t := fieldValue.Interface().(time.Time)
-
-				if t.IsZero() {
-					continue
-				}
 
 				if iso8601 {
 					node.Attributes[args[1]] = t.UTC().Format(iso8601TimeFormat)
@@ -365,10 +370,6 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 			} else if fieldValue.Type() == reflect.TypeOf(new(time.Time)) {
 				// A time pointer may be nil
 				if fieldValue.IsNil() {
-					if omitEmpty {
-						continue
-					}
-
 					node.Attributes[args[1]] = nil
 				} else {
 					tm := fieldValue.Interface().(*time.Time)
@@ -386,14 +387,6 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 					}
 				}
 			} else {
-				// Dealing with a fieldValue that is not a time
-				emptyValue := reflect.Zero(fieldValue.Type())
-
-				// See if we need to omit this field
-				if omitEmpty && reflect.DeepEqual(fieldValue.Interface(), emptyValue.Interface()) {
-					continue
-				}
-
 				strAttr, ok := fieldValue.Interface().(string)
 				if ok {
 					node.Attributes[args[1]] = strAttr

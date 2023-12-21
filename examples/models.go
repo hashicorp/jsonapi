@@ -20,7 +20,7 @@ func (t *UnsetableTime) MarshalAttribute() (interface{}, error) {
 	if t.Value == nil {
 		return json.RawMessage(nil), nil
 	} else {
-		return t.Value.Unix(), nil
+		return t.Value, nil
 	}
 }
 
@@ -31,7 +31,7 @@ type Blog struct {
 	Posts         []*Post        `jsonapi:"relation,posts"`
 	CurrentPost   *Post          `jsonapi:"relation,current_post"`
 	CurrentPostID int            `jsonapi:"attr,current_post_id"`
-	CreatedAt     *UnsetableTime `jsonapi:"attr,created_at,omitempty"`
+	CreatedAt     *UnsetableTime `jsonapi:"attr,created_at,omitempty,iso8601"`
 	ViewCount     int            `jsonapi:"attr,view_count"`
 }
 
