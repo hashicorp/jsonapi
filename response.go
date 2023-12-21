@@ -30,6 +30,11 @@ var (
 	ErrUnexpectedNil = errors.New("slice of struct pointers cannot contain nil")
 )
 
+// AttributeUnmarshaler can be implemented if custom marshaling is desired.
+// This interface behaves differently than json.Marshaler in that it returns
+// an interface rather than a byte array. The value returned can be a different
+// type than the method reciever, and will be substituted for the original value
+// as the jsonapi marshaling proceeds.
 type AttributeMarshaler interface {
 	MarshalAttribute() (interface{}, error)
 }
