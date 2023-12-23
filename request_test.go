@@ -387,7 +387,7 @@ func TestUnmarshalSetsAttrs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if out.CreatedAt.IsZero() {
+	if out.CreatedAt.Value.IsZero() {
 		t.Fatalf("Did not parse time")
 	}
 
@@ -1431,7 +1431,7 @@ func testModel() *Blog {
 		ID:        5,
 		ClientID:  "1",
 		Title:     "Title 1",
-		CreatedAt: time.Now(),
+		CreatedAt: &UnsetableTime{&now},
 		Posts: []*Post{
 			{
 				ID:    1,

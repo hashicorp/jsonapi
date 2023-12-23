@@ -1,9 +1,13 @@
 package jsonapi
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
+
+var now = time.Now()
 
 type BadModel struct {
 	ID int `jsonapi:"primary"`
@@ -80,15 +84,56 @@ type GenericInterface struct {
 	Data interface{} `jsonapi:"attr,interface"`
 }
 
+type UnsetableTime struct {
+	Value *time.Time
+}
+
+func (t *UnsetableTime) MarshalAttribute() (interface{}, error) {
+	if t == nil {
+		return nil, nil
+	}
+
+	if t.Value == nil {
+		return json.RawMessage(nil), nil
+	} else {
+		return t.Value, nil
+	}
+}
+
+func (t *UnsetableTime) UnmarshalAttribute(obj interface{}) error {
+	var ts time.Time
+	var err error
+
+	if obj == nil {
+		t.Value = nil
+		return nil
+	}
+
+	if tsStr, ok := obj.(string); ok {
+		ts, err = time.Parse(tsStr, time.RFC3339)
+		if err == nil {
+			t.Value = &ts
+			return nil
+		}
+	} else if tsFloat, ok := obj.(float64); ok {
+		ts = time.Unix(int64(tsFloat), 0)
+
+		t.Value = &ts
+		return nil
+	}
+
+	return errors.New("couldn't parse time")
+}
+
 type Blog struct {
-	ID            int       `jsonapi:"primary,blogs"`
-	ClientID      string    `jsonapi:"client-id"`
-	Title         string    `jsonapi:"attr,title"`
-	Posts         []*Post   `jsonapi:"relation,posts"`
-	CurrentPost   *Post     `jsonapi:"relation,current_post"`
-	CurrentPostID int       `jsonapi:"attr,current_post_id"`
-	CreatedAt     time.Time `jsonapi:"attr,created_at"`
-	ViewCount     int       `jsonapi:"attr,view_count"`
+	ID            int            `jsonapi:"primary,blogs"`
+	ClientID      string         `jsonapi:"client-id"`
+	Title         string         `jsonapi:"attr,title"`
+	Posts         []*Post        `jsonapi:"relation,posts"`
+	CurrentPost   *Post          `jsonapi:"relation,current_post"`
+	CurrentPostID int            `jsonapi:"attr,current_post_id"`
+	CreatedAt     *UnsetableTime `jsonapi:"attr,created_at,omitempty"`
+	ViewCount     int            `jsonapi:"attr,view_count"`
 
 	Links Links `jsonapi:"links,omitempty"`
 }

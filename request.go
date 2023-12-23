@@ -36,6 +36,10 @@ var (
 	ErrTypeNotFound = errors.New("no primary type annotation found on model")
 )
 
+type AttributeUnmarshaler interface {
+	UnmarshalAttribute(interface{}) error
+}
+
 // ErrUnsupportedPtrType is returned when the Struct field was a pointer but
 // the JSON value was of a different type
 type ErrUnsupportedPtrType struct {
@@ -588,6 +592,15 @@ func unmarshalAttribute(
 	fieldValue reflect.Value) (value reflect.Value, err error) {
 	value = reflect.ValueOf(attribute)
 	fieldType := structField.Type
+
+	i := reflect.TypeOf((*AttributeUnmarshaler)(nil)).Elem()
+	if fieldType.Implements(i) {
+		x := reflect.New(fieldType.Elem())
+		y := (x.Interface()).(AttributeUnmarshaler)
+		err = y.UnmarshalAttribute(attribute)
+		value = reflect.ValueOf(y)
+		return
+	}
 
 	// Handle field of type []string
 	if fieldValue.Type() == reflect.TypeOf([]string{}) {

@@ -342,7 +342,7 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 
 			// See if we need to omit this field
 			if omitEmpty {
-				if fieldValue.IsNil() {
+				if fieldValue.Interface() == nil {
 					continue
 				}
 
@@ -359,7 +359,6 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				}
 
 				fieldValue = reflect.ValueOf(a)
-				fmt.Println(fieldValue.Type())
 			}
 
 			if fieldValue.Type() == reflect.TypeOf(time.Time{}) {

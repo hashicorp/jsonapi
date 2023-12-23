@@ -629,7 +629,7 @@ func TestHasPrimaryAnnotation(t *testing.T) {
 	testModel := &Blog{
 		ID:        5,
 		Title:     "Title 1",
-		CreatedAt: time.Now(),
+		CreatedAt: &UnsetableTime{&now},
 	}
 
 	out := bytes.NewBuffer(nil)
@@ -658,7 +658,7 @@ func TestSupportsAttributes(t *testing.T) {
 	testModel := &Blog{
 		ID:        5,
 		Title:     "Title 1",
-		CreatedAt: time.Now(),
+		CreatedAt: &UnsetableTime{&now},
 	}
 
 	out := bytes.NewBuffer(nil)
@@ -683,10 +683,10 @@ func TestSupportsAttributes(t *testing.T) {
 }
 
 func TestOmitsZeroTimes(t *testing.T) {
-	testModel := &Blog{
-		ID:        5,
-		Title:     "Title 1",
-		CreatedAt: time.Time{},
+	testModel := &Company{
+		ID:        "id",
+		Name:      "Company",
+		FoundedAt: time.Time{},
 	}
 
 	out := bytes.NewBuffer(nil)
@@ -705,8 +705,8 @@ func TestOmitsZeroTimes(t *testing.T) {
 		t.Fatalf("Expected attributes")
 	}
 
-	if data.Attributes["created_at"] != nil {
-		t.Fatalf("Created at was serialized even though it was a zero Time")
+	if data.Attributes["founded_at"] != nil {
+		t.Fatalf("Founded at was serialized even though it was a zero Time")
 	}
 }
 
@@ -824,7 +824,7 @@ func TestSupportsLinkable(t *testing.T) {
 	testModel := &Blog{
 		ID:        5,
 		Title:     "Title 1",
-		CreatedAt: time.Now(),
+		CreatedAt: &UnsetableTime{&now},
 	}
 
 	out := bytes.NewBuffer(nil)
@@ -906,7 +906,7 @@ func TestSupportsMetable(t *testing.T) {
 	testModel := &Blog{
 		ID:        5,
 		Title:     "Title 1",
-		CreatedAt: time.Now(),
+		CreatedAt: &UnsetableTime{&now},
 	}
 
 	out := bytes.NewBuffer(nil)
@@ -977,7 +977,7 @@ func TestRelations(t *testing.T) {
 }
 
 func TestNoRelations(t *testing.T) {
-	testModel := &Blog{ID: 1, Title: "Title 1", CreatedAt: time.Now()}
+	testModel := &Blog{ID: 1, Title: "Title 1", CreatedAt: &UnsetableTime{&now}}
 
 	out := bytes.NewBuffer(nil)
 	if err := MarshalPayload(out, testModel); err != nil {
@@ -1037,7 +1037,7 @@ func TestMarshalPayload_many(t *testing.T) {
 		&Blog{
 			ID:        5,
 			Title:     "Title 1",
-			CreatedAt: time.Now(),
+			CreatedAt: &UnsetableTime{&now},
 			Posts: []*Post{
 				{
 					ID:    1,
@@ -1059,7 +1059,7 @@ func TestMarshalPayload_many(t *testing.T) {
 		&Blog{
 			ID:        6,
 			Title:     "Title 2",
-			CreatedAt: time.Now(),
+			CreatedAt: &UnsetableTime{&now},
 			Posts: []*Post{
 				{
 					ID:    3,
@@ -1200,7 +1200,7 @@ func testBlog() *Blog {
 	return &Blog{
 		ID:        5,
 		Title:     "Title 1",
-		CreatedAt: time.Now(),
+		CreatedAt: &UnsetableTime{&now},
 		Posts: []*Post{
 			{
 				ID:    1,
@@ -1260,5 +1260,29 @@ func testBlog() *Blog {
 				Body: "foo",
 			},
 		},
+	}
+}
+
+func TestCustomAttributeMarshaling(t *testing.T) {
+	blog := &Blog{ID: 1, Title: "Title 1", CreatedAt: nil}
+
+	bytes := bytes.NewBuffer(nil)
+	MarshalPayload(bytes, blog)
+
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal(bytes.Bytes(), &jsonData); err != nil {
+		t.Fatal(err)
+	}
+
+	if data, ok := jsonData["data"].(map[string]interface{}); ok {
+		if attrs, ok := data["attributes"].(map[string]interface{}); ok {
+			if _, ok := attrs["created_at"]; ok {
+				t.Fatalf("attributes should not contain `created_at`")
+			}
+		} else {
+			t.Fatalf("attributes key did not contain a Hash/Dict/Map")
+		}
+	} else {
+		t.Fatalf("data key did not contain a Hash/Dict/Map")
 	}
 }
