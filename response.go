@@ -331,6 +331,22 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				node.Attributes = make(map[string]interface{})
 			}
 
+			// Handle Nullable[T]
+			if strings.HasPrefix(fieldValue.Type().Name(), "Nullable[") {
+				// handle unspecified
+				if fieldValue.IsNil() {
+					continue
+				}
+
+				// handle null
+				if fieldValue.MapIndex(reflect.ValueOf(false)).IsValid() {
+					continue
+				}
+
+				// handle value
+				fieldValue = fieldValue.MapIndex(reflect.ValueOf(true))
+			}
+
 			if fieldValue.Type() == reflect.TypeOf(time.Time{}) {
 				t := fieldValue.Interface().(time.Time)
 

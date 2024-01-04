@@ -300,6 +300,88 @@ func TestStringPointerField(t *testing.T) {
 	}
 }
 
+func TestUnmarshalNullableTime(t *testing.T) {
+	aTime := time.Date(2016, 8, 17, 8, 27, 12, 23849, time.UTC)
+
+	out := new(WithNullables)
+
+	attrs := map[string]interface{}{
+		"name":         "Name",
+		"int_time":     aTime.Unix(),
+		"rfc3339_time": aTime.Format(time.RFC3339),
+		"iso8601_time": aTime.Format(iso8601TimeFormat),
+	}
+
+	if err := UnmarshalPayload(samplePayloadWithNullables(attrs), out); err != nil {
+		t.Fatal(err)
+	}
+
+	if out.IntTime == nil {
+		t.Fatal("Was not expecting a nil pointer for out.IntTime")
+	}
+
+	timeVal, err := out.IntTime.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected, actual := aTime, timeVal; expected.Equal(actual) {
+		t.Fatalf("Was expecting int_time to be `%s`, got `%s`", expected, actual)
+	}
+
+	timeVal, err = out.IntTime.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if out.RFC3339Time == nil {
+		t.Fatal("Was not expecting a nil pointer for out.RFC3339Time")
+	}
+	if expected, actual := aTime, timeVal; expected.Equal(actual) {
+		t.Fatalf("Was expecting descript to be `%s`, got `%s`", expected, actual)
+	}
+
+	timeVal, err = out.IntTime.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if out.ISO8601Time == nil {
+		t.Fatal("Was not expecting a nil pointer for out.ISO8601Time")
+	}
+	if expected, actual := aTime, timeVal; expected.Equal(actual) {
+		t.Fatalf("Was expecting descript to be `%s`, got `%s`", expected, actual)
+	}
+}
+
+func TestUnmarshalNullableBool(t *testing.T) {
+	out := new(WithNullables)
+
+	aBool := false
+
+	attrs := map[string]interface{}{
+		"name": "Name",
+		"bool": aBool,
+	}
+
+	if err := UnmarshalPayload(samplePayloadWithNullables(attrs), out); err != nil {
+		t.Fatal(err)
+	}
+
+	if out.Bool == nil {
+		t.Fatal("Was not expecting a nil pointer for out.Bool")
+	}
+
+	boolVal, err := out.Bool.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected, actual := aBool, boolVal; expected != actual {
+		t.Fatalf("Was expecting bool to be `%t`, got `%t`", expected, actual)
+	}
+}
+
 func TestMalformedTag(t *testing.T) {
 	out := new(BadModel)
 	err := UnmarshalPayload(samplePayload(), out)
@@ -1416,6 +1498,21 @@ func sampleWithPointerPayload(m map[string]interface{}) io.Reader {
 		Data: &Node{
 			ID:         "2",
 			Type:       "with-pointers",
+			Attributes: m,
+		},
+	}
+
+	out := bytes.NewBuffer(nil)
+	json.NewEncoder(out).Encode(payload)
+
+	return out
+}
+
+func samplePayloadWithNullables(m map[string]interface{}) io.Reader {
+	payload := &OnePayload{
+		Data: &Node{
+			ID:         "5",
+			Type:       "with-nullables",
 			Attributes: m,
 		},
 	}

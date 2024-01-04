@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -589,6 +590,12 @@ func unmarshalAttribute(
 	value = reflect.ValueOf(attribute)
 	fieldType := structField.Type
 
+	// Handle Nullable[T]
+	if strings.HasPrefix(fieldValue.Type().Name(), "Nullable[") {
+		value, err = handleNullable(attribute, args, structField, fieldValue)
+		return
+	}
+
 	// Handle field of type []string
 	if fieldValue.Type() == reflect.TypeOf([]string{}) {
 		value, err = handleStringSlice(attribute)
@@ -656,6 +663,32 @@ func handleStringSlice(attribute interface{}) (reflect.Value, error) {
 	return reflect.ValueOf(values), nil
 }
 
+func handleNullable(
+	attribute interface{},
+	args []string,
+	structField reflect.StructField,
+	fieldValue reflect.Value) (reflect.Value, error) {
+
+	if a, ok := attribute.(string); ok {
+		if bytes.Equal([]byte(a), []byte("null")) {
+			return reflect.ValueOf(nil), nil
+		}
+	}
+
+	var rgx = regexp.MustCompile(`\[(.*)\]`)
+	rs := rgx.FindStringSubmatch(fieldValue.Type().Name())
+
+	attrVal, err := unmarshalAttribute(attribute, args, structField, supportedNullableTypes[rs[1]])
+	if err != nil {
+		return reflect.ValueOf(nil), err
+	}
+
+	fieldValue.Set(reflect.MakeMap(fieldValue.Type()))
+	fieldValue.SetMapIndex(reflect.ValueOf(true), attrVal)
+
+	return fieldValue, nil
+}
+
 func handleTime(attribute interface{}, args []string, fieldValue reflect.Value) (reflect.Value, error) {
 	var isISO8601, isRFC3339 bool
 	v := reflect.ValueOf(attribute)
@@ -714,7 +747,7 @@ func handleTime(attribute interface{}, args []string, fieldValue reflect.Value) 
 		return reflect.ValueOf(time.Now()), ErrInvalidTime
 	}
 
-	t := time.Unix(at, 0)
+	t := time.Unix(at, 0).UTC()
 
 	return reflect.ValueOf(t), nil
 }
