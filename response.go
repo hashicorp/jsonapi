@@ -30,15 +30,6 @@ var (
 	ErrUnexpectedNil = errors.New("slice of struct pointers cannot contain nil")
 )
 
-// AttributeUnmarshaler can be implemented if custom marshaling is desired.
-// This interface behaves differently than json.Marshaler in that it returns
-// an interface rather than a byte array. The value returned can be a different
-// type than the method reciever, and will be substituted for the original value
-// as the jsonapi marshaling proceeds.
-type AttributeMarshaler interface {
-	MarshalAttribute() (interface{}, error)
-}
-
 // MarshalPayload writes a jsonapi response for one or many records. The
 // related records are sideloaded into the "included" array. If this method is
 // given a struct pointer as an argument it will serialize in the form
@@ -350,15 +341,6 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				if reflect.DeepEqual(fieldValue.Interface(), emptyValue.Interface()) {
 					continue
 				}
-			}
-
-			if m, ok := fieldValue.Interface().(AttributeMarshaler); ok {
-				a, err := m.MarshalAttribute()
-				if err != nil {
-					return nil, err
-				}
-
-				fieldValue = reflect.ValueOf(a)
 			}
 
 			if fieldValue.Type() == reflect.TypeOf(time.Time{}) {

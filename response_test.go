@@ -629,7 +629,7 @@ func TestHasPrimaryAnnotation(t *testing.T) {
 	testModel := &Blog{
 		ID:        5,
 		Title:     "Title 1",
-		CreatedAt: &UnsetableTime{&now},
+		CreatedAt: now,
 	}
 
 	out := bytes.NewBuffer(nil)
@@ -658,7 +658,7 @@ func TestSupportsAttributes(t *testing.T) {
 	testModel := &Blog{
 		ID:        5,
 		Title:     "Title 1",
-		CreatedAt: &UnsetableTime{&now},
+		CreatedAt: now,
 	}
 
 	out := bytes.NewBuffer(nil)
@@ -802,6 +802,48 @@ func TestMarshal_Times(t *testing.T) {
 				return nil
 			},
 		},
+		{
+			desc: "unsetable_nil",
+			input: &TimestampModel{
+				ID:        5,
+				Unsetable: nil,
+			},
+			verification: func(root map[string]interface{}) error {
+				v := root["data"].(map[string]interface{})["attributes"].(map[string]interface{})["unsetable"]
+				if got, want := v, (interface{})(nil); got != want {
+					return fmt.Errorf("got %v, want %v", got, want)
+				}
+				return nil
+			},
+		},
+		{
+			desc: "unsetable_value_present",
+			input: &TimestampModel{
+				ID:        5,
+				Unsetable: &Unsetable[time.Time]{&aTime},
+			},
+			verification: func(root map[string]interface{}) error {
+				v := root["data"].(map[string]interface{})["attributes"].(map[string]interface{})["unsetable"].(string)
+				if got, want := v, aTime.UTC().Format(time.RFC3339); got != want {
+					return fmt.Errorf("got %v, want %v", got, want)
+				}
+				return nil
+			},
+		},
+		{
+			desc: "unsetable_nil_value",
+			input: &TimestampModel{
+				ID:        5,
+				Unsetable: &Unsetable[time.Time]{},
+			},
+			verification: func(root map[string]interface{}) error {
+				v := root["data"].(map[string]interface{})["attributes"].(map[string]interface{})["unsetable"]
+				if got, want := v, (interface{})(nil); got != want {
+					return fmt.Errorf("got %v, want %v", got, want)
+				}
+				return nil
+			},
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			out := bytes.NewBuffer(nil)
@@ -824,7 +866,7 @@ func TestSupportsLinkable(t *testing.T) {
 	testModel := &Blog{
 		ID:        5,
 		Title:     "Title 1",
-		CreatedAt: &UnsetableTime{&now},
+		CreatedAt: now,
 	}
 
 	out := bytes.NewBuffer(nil)
@@ -906,7 +948,7 @@ func TestSupportsMetable(t *testing.T) {
 	testModel := &Blog{
 		ID:        5,
 		Title:     "Title 1",
-		CreatedAt: &UnsetableTime{&now},
+		CreatedAt: now,
 	}
 
 	out := bytes.NewBuffer(nil)
@@ -977,7 +1019,7 @@ func TestRelations(t *testing.T) {
 }
 
 func TestNoRelations(t *testing.T) {
-	testModel := &Blog{ID: 1, Title: "Title 1", CreatedAt: &UnsetableTime{&now}}
+	testModel := &Blog{ID: 1, Title: "Title 1", CreatedAt: now}
 
 	out := bytes.NewBuffer(nil)
 	if err := MarshalPayload(out, testModel); err != nil {
@@ -1037,7 +1079,7 @@ func TestMarshalPayload_many(t *testing.T) {
 		&Blog{
 			ID:        5,
 			Title:     "Title 1",
-			CreatedAt: &UnsetableTime{&now},
+			CreatedAt: now,
 			Posts: []*Post{
 				{
 					ID:    1,
@@ -1059,7 +1101,7 @@ func TestMarshalPayload_many(t *testing.T) {
 		&Blog{
 			ID:        6,
 			Title:     "Title 2",
-			CreatedAt: &UnsetableTime{&now},
+			CreatedAt: now,
 			Posts: []*Post{
 				{
 					ID:    3,
@@ -1200,7 +1242,7 @@ func testBlog() *Blog {
 	return &Blog{
 		ID:        5,
 		Title:     "Title 1",
-		CreatedAt: &UnsetableTime{&now},
+		CreatedAt: now,
 		Posts: []*Post{
 			{
 				ID:    1,
@@ -1260,29 +1302,5 @@ func testBlog() *Blog {
 				Body: "foo",
 			},
 		},
-	}
-}
-
-func TestCustomAttributeMarshaling(t *testing.T) {
-	blog := &Blog{ID: 1, Title: "Title 1", CreatedAt: nil}
-
-	bytes := bytes.NewBuffer(nil)
-	MarshalPayload(bytes, blog)
-
-	var jsonData map[string]interface{}
-	if err := json.Unmarshal(bytes.Bytes(), &jsonData); err != nil {
-		t.Fatal(err)
-	}
-
-	if data, ok := jsonData["data"].(map[string]interface{}); ok {
-		if attrs, ok := data["attributes"].(map[string]interface{}); ok {
-			if _, ok := attrs["created_at"]; ok {
-				t.Fatalf("attributes should not contain `created_at`")
-			}
-		} else {
-			t.Fatalf("attributes key did not contain a Hash/Dict/Map")
-		}
-	} else {
-		t.Fatalf("data key did not contain a Hash/Dict/Map")
 	}
 }

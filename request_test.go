@@ -387,7 +387,7 @@ func TestUnmarshalSetsAttrs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if out.CreatedAt.Value.IsZero() {
+	if out.CreatedAt.IsZero() {
 		t.Fatalf("Did not parse time")
 	}
 
@@ -545,6 +545,40 @@ func TestUnmarshal_Times(t *testing.T) {
 				},
 			},
 			wantErr: true,
+		},
+		{
+			desc: "unsetable_nil",
+			inputPayload: &OnePayload{
+				Data: &Node{
+					Type: "timestamps",
+					Attributes: map[string]interface{}{
+						"unsetable": nil,
+					},
+				},
+			},
+			verification: func(tm *TimestampModel) error {
+				if got, want := tm.Unsetable, (*Unsetable[time.Time])(nil); got != want {
+					return fmt.Errorf("got %v, want %v", got, want)
+				}
+				return nil
+			},
+		},
+		{
+			desc: "unsetable_value_present",
+			inputPayload: &OnePayload{
+				Data: &Node{
+					Type: "timestamps",
+					Attributes: map[string]interface{}{
+						"unsetable": "2016-08-17T08:27:12Z",
+					},
+				},
+			},
+			verification: func(tm *TimestampModel) error {
+				if got, want := *tm.Unsetable.Value, aTime; got != want {
+					return fmt.Errorf("got %v, want %v", got, want)
+				}
+				return nil
+			},
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -1431,7 +1465,7 @@ func testModel() *Blog {
 		ID:        5,
 		ClientID:  "1",
 		Title:     "Title 1",
-		CreatedAt: &UnsetableTime{&now},
+		CreatedAt: now,
 		Posts: []*Post{
 			{
 				ID:    1,

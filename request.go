@@ -36,10 +36,6 @@ var (
 	ErrTypeNotFound = errors.New("no primary type annotation found on model")
 )
 
-type AttributeUnmarshaler interface {
-	UnmarshalAttribute(interface{}) error
-}
-
 // ErrUnsupportedPtrType is returned when the Struct field was a pointer but
 // the JSON value was of a different type
 type ErrUnsupportedPtrType struct {
@@ -590,17 +586,9 @@ func unmarshalAttribute(
 	args []string,
 	structField reflect.StructField,
 	fieldValue reflect.Value) (value reflect.Value, err error) {
+
 	value = reflect.ValueOf(attribute)
 	fieldType := structField.Type
-
-	i := reflect.TypeOf((*AttributeUnmarshaler)(nil)).Elem()
-	if fieldType.Implements(i) {
-		x := reflect.New(fieldType.Elem())
-		y := (x.Interface()).(AttributeUnmarshaler)
-		err = y.UnmarshalAttribute(attribute)
-		value = reflect.ValueOf(y)
-		return
-	}
 
 	// Handle field of type []string
 	if fieldValue.Type() == reflect.TypeOf([]string{}) {
@@ -801,6 +789,21 @@ func handlePointer(
 	t := fieldValue.Type()
 	var concreteVal reflect.Value
 
+	interf := fieldValue.Addr().Elem().Interface()
+	if _, ok := interf.(json.Unmarshaler); ok {
+
+		m := reflect.New(fieldType.Elem()).Interface()
+
+		var tmp []byte
+		tmp, err := json.Marshal(attribute)
+		if err == nil {
+			err = json.Unmarshal(tmp, &m)
+			if err == nil {
+				return reflect.ValueOf(m), nil
+			}
+		}
+	}
+
 	switch cVal := attribute.(type) {
 	case string:
 		concreteVal = reflect.ValueOf(&cVal)
@@ -832,6 +835,18 @@ func handlePointer(
 func handleStruct(
 	attribute interface{},
 	fieldValue reflect.Value) (reflect.Value, error) {
+
+	interf := fieldValue.Interface()
+	if _, ok := interf.(json.Unmarshaler); ok {
+		var tmp []byte
+		tmp, err := json.Marshal(attribute)
+		if err == nil {
+			err = json.Unmarshal(tmp, interf)
+			if err == nil {
+				return reflect.ValueOf(interf), nil
+			}
+		}
+	}
 
 	data, err := json.Marshal(attribute)
 	if err != nil {

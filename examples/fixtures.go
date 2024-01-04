@@ -7,7 +7,7 @@ func fixtureBlogCreate(i int) *Blog {
 	return &Blog{
 		ID:        1 * i,
 		Title:     "Title 1",
-		CreatedAt: &UnsetableTime{&ts},
+		CreatedAt: &Unsetable[time.Time]{&ts},
 		Posts: []*Post{
 			{
 				ID:    1 * i,

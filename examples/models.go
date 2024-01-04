@@ -8,11 +8,11 @@ import (
 	"github.com/hashicorp/jsonapi"
 )
 
-type UnsetableTime struct {
-	Value *time.Time
+type Unsetable[T any] struct {
+	Value *T
 }
 
-func (t *UnsetableTime) MarshalAttribute() (interface{}, error) {
+func (t *Unsetable[T]) MarshalAttribute() ([]byte, error) {
 	if t == nil {
 		return nil, nil
 	}
@@ -20,19 +20,24 @@ func (t *UnsetableTime) MarshalAttribute() (interface{}, error) {
 	if t.Value == nil {
 		return json.RawMessage(nil), nil
 	} else {
-		return t.Value, nil
+		b, err := json.Marshal(t.Value)
+		if err != nil {
+			return nil, err
+		}
+
+		return b, nil
 	}
 }
 
 // Blog is a model representing a blog site
 type Blog struct {
-	ID            int            `jsonapi:"primary,blogs"`
-	Title         string         `jsonapi:"attr,title"`
-	Posts         []*Post        `jsonapi:"relation,posts"`
-	CurrentPost   *Post          `jsonapi:"relation,current_post"`
-	CurrentPostID int            `jsonapi:"attr,current_post_id"`
-	CreatedAt     *UnsetableTime `jsonapi:"attr,created_at,omitempty,iso8601"`
-	ViewCount     int            `jsonapi:"attr,view_count"`
+	ID            int                   `jsonapi:"primary,blogs"`
+	Title         string                `jsonapi:"attr,title"`
+	Posts         []*Post               `jsonapi:"relation,posts"`
+	CurrentPost   *Post                 `jsonapi:"relation,current_post"`
+	CurrentPostID int                   `jsonapi:"attr,current_post_id"`
+	CreatedAt     *Unsetable[time.Time] `jsonapi:"attr,created_at,omitempty,iso8601"`
+	ViewCount     int                   `jsonapi:"attr,view_count"`
 }
 
 // Post is a model representing a post on a blog

@@ -2,8 +2,8 @@ package jsonapi
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+	"reflect"
 	"time"
 )
 
@@ -30,13 +30,14 @@ type WithPointer struct {
 }
 
 type TimestampModel struct {
-	ID       int        `jsonapi:"primary,timestamps"`
-	DefaultV time.Time  `jsonapi:"attr,defaultv"`
-	DefaultP *time.Time `jsonapi:"attr,defaultp"`
-	ISO8601V time.Time  `jsonapi:"attr,iso8601v,iso8601"`
-	ISO8601P *time.Time `jsonapi:"attr,iso8601p,iso8601"`
-	RFC3339V time.Time  `jsonapi:"attr,rfc3339v,rfc3339"`
-	RFC3339P *time.Time `jsonapi:"attr,rfc3339p,rfc3339"`
+	ID        int                   `jsonapi:"primary,timestamps"`
+	DefaultV  time.Time             `jsonapi:"attr,defaultv"`
+	DefaultP  *time.Time            `jsonapi:"attr,defaultp"`
+	ISO8601V  time.Time             `jsonapi:"attr,iso8601v,iso8601"`
+	ISO8601P  *time.Time            `jsonapi:"attr,iso8601p,iso8601"`
+	RFC3339V  time.Time             `jsonapi:"attr,rfc3339v,rfc3339"`
+	RFC3339P  *time.Time            `jsonapi:"attr,rfc3339p,rfc3339"`
+	Unsetable *Unsetable[time.Time] `jsonapi:"attr,unsetable"`
 }
 
 type Car struct {
@@ -84,56 +85,63 @@ type GenericInterface struct {
 	Data interface{} `jsonapi:"attr,interface"`
 }
 
-type UnsetableTime struct {
-	Value *time.Time
+type Unsetable[T any] struct {
+	Value *T
 }
 
-func (t *UnsetableTime) MarshalAttribute() (interface{}, error) {
+func (t *Unsetable[T]) MarshalJSON() ([]byte, error) {
 	if t == nil {
 		return nil, nil
 	}
 
-	if t.Value == nil {
-		return json.RawMessage(nil), nil
+	var b []byte
+	var err error
+	if t == nil || t.Value == nil {
+		return json.RawMessage(`null`), nil
 	} else {
-		return t.Value, nil
+		val := reflect.ValueOf(t.Value)
+		if val.Type().Kind() == reflect.Ptr && val.Elem().Type() == reflect.TypeOf(time.Time{}) {
+			b, err = json.Marshal(val.Elem().Interface().(time.Time).Format(time.RFC3339))
+			if err != nil {
+				return nil, err
+			}
+
+			return b, nil
+		}
+
+		b, err = json.Marshal(t.Value)
+		if err != nil {
+			return nil, err
+		}
+
+		return b, nil
 	}
 }
 
-func (t *UnsetableTime) UnmarshalAttribute(obj interface{}) error {
-	var ts time.Time
-	var err error
-
-	if obj == nil {
-		t.Value = nil
+func (t *Unsetable[T]) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
 		return nil
 	}
 
-	if tsStr, ok := obj.(string); ok {
-		ts, err = time.Parse(tsStr, time.RFC3339)
-		if err == nil {
-			t.Value = &ts
-			return nil
-		}
-	} else if tsFloat, ok := obj.(float64); ok {
-		ts = time.Unix(int64(tsFloat), 0)
-
-		t.Value = &ts
-		return nil
+	var val T
+	if err := json.Unmarshal(data, &val); err != nil {
+		return err
 	}
 
-	return errors.New("couldn't parse time")
+	(*t).Value = &val
+	return nil
 }
 
 type Blog struct {
-	ID            int            `jsonapi:"primary,blogs"`
-	ClientID      string         `jsonapi:"client-id"`
-	Title         string         `jsonapi:"attr,title"`
-	Posts         []*Post        `jsonapi:"relation,posts"`
-	CurrentPost   *Post          `jsonapi:"relation,current_post"`
-	CurrentPostID int            `jsonapi:"attr,current_post_id"`
-	CreatedAt     *UnsetableTime `jsonapi:"attr,created_at,omitempty"`
-	ViewCount     int            `jsonapi:"attr,view_count"`
+	ID            int                   `jsonapi:"primary,blogs"`
+	ClientID      string                `jsonapi:"client-id"`
+	Title         string                `jsonapi:"attr,title"`
+	Posts         []*Post               `jsonapi:"relation,posts"`
+	CurrentPost   *Post                 `jsonapi:"relation,current_post"`
+	CurrentPostID int                   `jsonapi:"attr,current_post_id"`
+	CreatedAt     time.Time             `jsonapi:"attr,created_at,omitempty"`
+	ViewCount     int                   `jsonapi:"attr,view_count"`
+	DestroyAt     *Unsetable[time.Time] `jsonapi:"attr,destroy_at,omitempty"`
 
 	Links Links `jsonapi:"links,omitempty"`
 }
