@@ -1,7 +1,9 @@
 package jsonapi
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 )
 
@@ -33,6 +35,44 @@ type TimestampModel struct {
 	ISO8601P *time.Time `jsonapi:"attr,iso8601p,iso8601"`
 	RFC3339V time.Time  `jsonapi:"attr,rfc3339v,rfc3339"`
 	RFC3339P *time.Time `jsonapi:"attr,rfc3339p,rfc3339"`
+}
+
+type Unsetable[T any] struct {
+	Value *T
+}
+
+func (t *Unsetable[T]) MarshalJSON() ([]byte, error) {
+	if t == nil {
+		return nil, nil
+	}
+
+	var b []byte
+	var err error
+	if t == nil || t.Value == nil {
+		return json.RawMessage(`null`), nil
+	} else {
+		val := reflect.ValueOf(t.Value)
+		if val.Type().Kind() == reflect.Ptr && val.Elem().Type() == reflect.TypeOf(time.Time{}) {
+			b, err = json.Marshal(val.Elem().Interface().(time.Time).Format(time.RFC3339))
+			if err != nil {
+				return nil, err
+			}
+
+			return b, nil
+		}
+
+		b, err = json.Marshal(t.Value)
+		if err != nil {
+			return nil, err
+		}
+
+		return b, nil
+	}
+}
+
+type CustomTimestampModel struct {
+	ID            int                   `jsonapi:"primary,timestamps"`
+	UnsetableTime *Unsetable[time.Time] `jsonapi:"attr,unsetable"`
 }
 
 type Car struct {

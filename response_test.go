@@ -820,6 +820,73 @@ func TestMarshal_Times(t *testing.T) {
 	}
 }
 
+func TestCustomMarshal_Times(t *testing.T) {
+	aTime := time.Date(2016, 8, 17, 8, 27, 12, 23849, time.UTC)
+
+	for _, tc := range []struct {
+		desc         string
+		input        *CustomTimestampModel
+		verification func(data map[string]interface{}) error
+	}{
+		{
+			desc: "unsetable_nil",
+			input: &CustomTimestampModel{
+				ID:            5,
+				UnsetableTime: nil,
+			},
+			verification: func(root map[string]interface{}) error {
+				v := root["data"].(map[string]interface{})["attributes"].(map[string]interface{})["unsetable"]
+				if got, want := v, (interface{})(nil); got != want {
+					return fmt.Errorf("got %v, want %v", got, want)
+				}
+				return nil
+			},
+		},
+		{
+			desc: "unsetable_value_present",
+			input: &CustomTimestampModel{
+				ID:            5,
+				UnsetableTime: &Unsetable[time.Time]{&aTime},
+			},
+			verification: func(root map[string]interface{}) error {
+				v := root["data"].(map[string]interface{})["attributes"].(map[string]interface{})["unsetable"].(string)
+				if got, want := v, aTime.UTC().Format(time.RFC3339); got != want {
+					return fmt.Errorf("got %v, want %v", got, want)
+				}
+				return nil
+			},
+		},
+		{
+			desc: "unsetable_nil_value",
+			input: &CustomTimestampModel{
+				ID:            5,
+				UnsetableTime: &Unsetable[time.Time]{},
+			},
+			verification: func(root map[string]interface{}) error {
+				v := root["data"].(map[string]interface{})["attributes"].(map[string]interface{})["unsetable"]
+				if got, want := v, (interface{})(nil); got != want {
+					return fmt.Errorf("got %v, want %v", got, want)
+				}
+				return nil
+			},
+		}} {
+		t.Run(tc.desc, func(t *testing.T) {
+			out := bytes.NewBuffer(nil)
+			if err := MarshalPayload(out, tc.input); err != nil {
+				t.Fatal(err)
+			}
+			// Use the standard JSON library to traverse the genereated JSON payload.
+			data := map[string]interface{}{}
+			json.Unmarshal(out.Bytes(), &data)
+			if tc.verification != nil {
+				if err := tc.verification(data); err != nil {
+					t.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
 func TestSupportsLinkable(t *testing.T) {
 	testModel := &Blog{
 		ID:        5,
