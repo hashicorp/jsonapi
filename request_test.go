@@ -8,6 +8,7 @@ import (
 	"io"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -379,6 +380,151 @@ func TestUnmarshalNullableBool(t *testing.T) {
 
 	if expected, actual := aBool, boolVal; expected != actual {
 		t.Fatalf("Was expecting bool to be `%t`, got `%t`", expected, actual)
+	}
+}
+
+func TestUnmarshalNullableRelationshipsNonNullValue(t *testing.T) {
+	comment := &Comment{
+		ID:   5,
+		Body: "Hello World",
+	}
+
+	payload := &OnePayload{
+		Data: &Node{
+			ID:   "10",
+			Type: "with-nullables",
+			Relationships: map[string]interface{}{
+				"nullable_comment": &RelationshipOneNode{
+					Data: &Node{
+						Type: "comments",
+						ID:   strconv.Itoa(comment.ID),
+					},
+				},
+			},
+		},
+	}
+
+	outBuf := bytes.NewBuffer(nil)
+	json.NewEncoder(outBuf).Encode(payload)
+
+	out := new(WithNullableAttrs)
+
+	if err := UnmarshalPayload(outBuf, out); err != nil {
+		t.Fatal(err)
+	}
+
+	nullableCommentOpt := out.NullableComment
+	if !nullableCommentOpt.IsSpecified() {
+		t.Fatal("Expected NullableComment to be specified")
+	}
+
+	nullableComment, err := nullableCommentOpt.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected, actual := comment.ID, nullableComment.ID; expected != actual {
+		t.Fatalf("Was expecting NullableComment to be `%d`, got `%d`", expected, actual)
+	}
+}
+
+func TestUnmarshalNullableRelationshipsNullStringValue(t *testing.T) {
+	payload := &OnePayload{
+		Data: &Node{
+			ID:   "10",
+			Type: "with-nullables",
+			Relationships: map[string]interface{}{
+				"nullable_comment": "null",
+			},
+		},
+	}
+
+	outBuf := bytes.NewBuffer(nil)
+	json.NewEncoder(outBuf).Encode(payload)
+
+	out := new(WithNullableAttrs)
+
+	if err := UnmarshalPayload(outBuf, out); err != nil {
+		t.Fatal(err)
+	}
+
+	nullableCommentOpt := out.NullableComment
+	if !nullableCommentOpt.IsSpecified() || !nullableCommentOpt.IsNull() {
+		t.Fatal("Expected NullableComment to be specified and explicit null")
+	}
+
+}
+
+func TestUnmarshalNullableRelationshipsNilValue(t *testing.T) {
+	payload := &OnePayload{
+		Data: &Node{
+			ID:   "10",
+			Type: "with-nullables",
+			Relationships: map[string]interface{}{
+				"nullable_comment": nil,
+			},
+		},
+	}
+
+	outBuf := bytes.NewBuffer(nil)
+	json.NewEncoder(outBuf).Encode(payload)
+
+	out := new(WithNullableAttrs)
+
+	if err := UnmarshalPayload(outBuf, out); err != nil {
+		t.Fatal(err)
+	}
+
+	nullableCommentOpt := out.NullableComment
+	if nullableCommentOpt.IsSpecified() || nullableCommentOpt.IsNull() {
+		t.Fatal("Expected NullableComment to NOT be specified and NOT be explicit null")
+	}
+}
+
+func TestUnmarshalNullableRelationshipsNonExistentValue(t *testing.T) {
+	payload := &OnePayload{
+		Data: &Node{
+			ID:            "10",
+			Type:          "with-nullables",
+			Relationships: map[string]interface{}{},
+		},
+	}
+
+	outBuf := bytes.NewBuffer(nil)
+	json.NewEncoder(outBuf).Encode(payload)
+
+	out := new(WithNullableAttrs)
+
+	if err := UnmarshalPayload(outBuf, out); err != nil {
+		t.Fatal(err)
+	}
+
+	nullableCommentOpt := out.NullableComment
+	if nullableCommentOpt.IsSpecified() || nullableCommentOpt.IsNull() {
+		t.Fatal("Expected NullableComment to NOT be specified and NOT be explicit null")
+	}
+}
+
+func TestUnmarshalNullableRelationshipsNoRelationships(t *testing.T) {
+	payload := &OnePayload{
+		Data: &Node{
+			ID:   "10",
+			Type: "with-nullables",
+		},
+	}
+
+	outBuf := bytes.NewBuffer(nil)
+	json.NewEncoder(outBuf).Encode(payload)
+
+	out := new(WithNullableAttrs)
+
+	if err := UnmarshalPayload(outBuf, out); err != nil {
+		t.Fatal(err)
+	}
+
+	nullableCommentOpt := out.NullableComment
+	if nullableCommentOpt.IsSpecified() || nullableCommentOpt.IsNull() {
+		t.Fatal("Expected NullableComment to NOT be specified and NOT be explicit null")
 	}
 }
 

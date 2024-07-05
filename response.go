@@ -331,7 +331,7 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				node.Attributes = make(map[string]interface{})
 			}
 
-			// Handle Nullable[T]
+			// Handle NullableAttr[T]
 			if strings.HasPrefix(fieldValue.Type().Name(), "NullableAttr[") {
 				// handle unspecified
 				if fieldValue.IsNil() {
@@ -343,7 +343,6 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 					node.Attributes[args[1]] = json.RawMessage("null")
 					continue
 				} else {
-
 					// handle value
 					fieldValue = fieldValue.MapIndex(reflect.ValueOf(true))
 				}
@@ -408,6 +407,22 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 			//add support for 'omitempty' struct tag for marshaling as absent
 			if len(args) > 2 {
 				omitEmpty = args[2] == annotationOmitEmpty
+			}
+
+			if node.Relationships == nil {
+				node.Relationships = make(map[string]interface{})
+			}
+
+			// Handle NullableRelationship[T]
+			if strings.HasPrefix(fieldValue.Type().Name(), "NullableRelationship[") {
+				if fieldValue.MapIndex(reflect.ValueOf(false)).IsValid() {
+					// handle explicit null
+					node.Relationships[args[1]] = json.RawMessage("null")
+					continue
+				} else if fieldValue.MapIndex(reflect.ValueOf(true)).IsValid() {
+					// handle value
+					fieldValue = fieldValue.MapIndex(reflect.ValueOf(true))
+				}
 			}
 
 			isSlice := fieldValue.Type().Kind() == reflect.Slice
@@ -479,10 +494,6 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 
 					fieldValue = reflect.ValueOf(collection)
 				}
-			}
-
-			if node.Relationships == nil {
-				node.Relationships = make(map[string]interface{})
 			}
 
 			var relLinks *Links
