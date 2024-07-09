@@ -428,13 +428,15 @@ func TestUnmarshalNullableRelationshipsNonNullValue(t *testing.T) {
 	}
 }
 
-func TestUnmarshalNullableRelationshipsNullStringValue(t *testing.T) {
+func TestUnmarshalNullableRelationshipsExplicitNullValue(t *testing.T) {
 	payload := &OnePayload{
 		Data: &Node{
 			ID:   "10",
 			Type: "with-nullables",
 			Relationships: map[string]interface{}{
-				"nullable_comment": "null",
+				"nullable_comment": &RelationshipOneNode{
+					Data: nil,
+				},
 			},
 		},
 	}
@@ -453,32 +455,6 @@ func TestUnmarshalNullableRelationshipsNullStringValue(t *testing.T) {
 		t.Fatal("Expected NullableComment to be specified and explicit null")
 	}
 
-}
-
-func TestUnmarshalNullableRelationshipsNilValue(t *testing.T) {
-	payload := &OnePayload{
-		Data: &Node{
-			ID:   "10",
-			Type: "with-nullables",
-			Relationships: map[string]interface{}{
-				"nullable_comment": nil,
-			},
-		},
-	}
-
-	outBuf := bytes.NewBuffer(nil)
-	json.NewEncoder(outBuf).Encode(payload)
-
-	out := new(WithNullableAttrs)
-
-	if err := UnmarshalPayload(outBuf, out); err != nil {
-		t.Fatal(err)
-	}
-
-	nullableCommentOpt := out.NullableComment
-	if nullableCommentOpt.IsSpecified() || nullableCommentOpt.IsNull() {
-		t.Fatal("Expected NullableComment to NOT be specified and NOT be explicit null")
-	}
 }
 
 func TestUnmarshalNullableRelationshipsNonExistentValue(t *testing.T) {

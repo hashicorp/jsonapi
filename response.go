@@ -415,9 +415,15 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 
 			// Handle NullableRelationship[T]
 			if strings.HasPrefix(fieldValue.Type().Name(), "NullableRelationship[") {
+
 				if fieldValue.MapIndex(reflect.ValueOf(false)).IsValid() {
+					innerTypeIsSlice := fieldValue.MapIndex(reflect.ValueOf(false)).Type().Kind() == reflect.Slice
 					// handle explicit null
-					node.Relationships[args[1]] = json.RawMessage("null")
+					if innerTypeIsSlice {
+						node.Relationships[args[1]] = json.RawMessage("[]")
+					} else {
+						node.Relationships[args[1]] = json.RawMessage("{\"data\":null}")
+					}
 					continue
 				} else if fieldValue.MapIndex(reflect.ValueOf(true)).IsValid() {
 					// handle value

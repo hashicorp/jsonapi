@@ -443,14 +443,6 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 					// model, depending on annotation
 					m := reflect.New(sliceType.Elem().Elem())
 
-					// Nullable relationships have an extra pointer indirection
-					// unwind that here
-					if strings.HasPrefix(fieldType.Type.Name(), "NullableRelationship[") {
-						if m.Kind() == reflect.Ptr {
-							m = reflect.New(sliceType.Elem().Elem().Elem())
-						}
-					}
-
 					err = unmarshalNodeMaybeChoice(&m, n, annotation, choiceMapping, included)
 					if err != nil {
 						er = err
@@ -471,13 +463,13 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 				json.NewEncoder(buf).Encode(relDataStr)
 
 				isExplicitNull := false
-				if err := json.NewDecoder(buf).Decode(relationship); err != nil {
-					// We couldn't decode the data into the relationship type
-					// check if this is a string "null" which indicates
-					// disassociating the relationship
-					if relDataStr == "null" {
-						isExplicitNull = true
-					}
+				relationshipDecodeErr := json.NewDecoder(buf).Decode(relationship)
+				if relationshipDecodeErr == nil && relationship.Data == nil {
+					// If the relationship was a valid node and relationship data was null
+					// this indicates disassociating the relationship
+					isExplicitNull = true
+				} else if relationshipDecodeErr != nil {
+					fmt.Printf("decode err %v\n", relationshipDecodeErr)
 				}
 
 				// This will hold either the value of the choice type model or the actual
