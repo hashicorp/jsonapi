@@ -253,13 +253,24 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 
 		annotation := args[0]
 
-		if (annotation == annotationClientID && len(args) != 1) ||
-			(annotation != annotationClientID && len(args) < 2) {
-			er = ErrBadJSONAPIStructTag
-			break
+		switch annotation {
+		case annotationClientID:
+		case annotationIgnore:
+			if len(args) != 1 {
+				er = ErrBadJSONAPIStructTag
+				break
+			}
+		default:
+			if len(args) < 2 {
+				er = ErrBadJSONAPIStructTag
+				break
+			}
 		}
 
-		if annotation == annotationPrimary {
+		if annotation == annotationIgnore {
+			// Do Nothing
+			continue
+		} else if annotation == annotationPrimary {
 			v := fieldValue
 
 			// Deal with PTRS

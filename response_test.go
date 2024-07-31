@@ -342,6 +342,37 @@ func TestWithOmitsEmptyAnnotationOnRelation(t *testing.T) {
 	}
 }
 
+func TestWithIgnoreAnnotation(t *testing.T) {
+	type BlogOptionalPosts struct {
+		ID    int     `jsonapi:"primary,blogs"`
+		Title string  `jsonapi:"attr,title"`
+		Posts []*Post `jsonapi:"-"`
+	}
+
+	blog := &BlogOptionalPosts{ID: 999}
+
+	out := bytes.NewBuffer(nil)
+	if err := MarshalPayload(out, blog); err != nil {
+		t.Fatal(err)
+	}
+
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &jsonData); err != nil {
+		t.Fatal(err)
+	}
+	payload := jsonData["data"].(map[string]interface{})
+
+	// Verify posts doesn't appear as a relationship
+	if val, exists := payload["relationships"]; exists {
+		t.Fatalf("Was expecting the data.relationships key/value to have been empty - it was not and had a value of %v", val)
+	}
+	attrs := payload["attributes"].(map[string]interface{})
+	// Verify posts doesn't appear as an attribute
+	if val, exists := attrs["posts"]; exists {
+		t.Fatalf("Was expecting the data.attributes.posts key to not exist - it did and had a value of %v", val)
+	}
+}
+
 func TestWithExtraFieldOnRelation(t *testing.T) {
 	type Book struct {
 		ID     string `jsonapi:"primary,book"`

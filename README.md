@@ -242,6 +242,13 @@ A field annotated with `links` will have the links members of the request unmars
 that this field should _always_ be annotated with `omitempty`, as marshaling of links members is
 instead handled by the `Linkable` interface (see `Links` below).
 
+#### `-` (Ignore)
+```
+`jsonapi:"-"`
+```
+
+A field annotated with `-` will never be marshaled or unmarshaled.
+
 ## Methods Reference
 
 **All `Marshal` and `Unmarshal` methods expect pointers to struct
@@ -422,7 +429,7 @@ attribute values of any type.
 
 In the example below, a payload is presented for a fictitious API that makes use
 of significant `null` values. Once enabled, the `UnsettableTime` setting can
-only be disabled by updating it to a `null` value. 
+only be disabled by updating it to a `null` value.
 
 The payload struct below makes use of a `NullableAttr` with an inner `time.Time`
 to allow this behavior:

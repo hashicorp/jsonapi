@@ -253,9 +253,16 @@ func getStructTags(field reflect.StructField) ([]string, error) {
 
 	annotation := args[0]
 
-	if (annotation == annotationClientID && len(args) != 1) ||
-		(annotation != annotationClientID && len(args) < 2) {
-		return nil, ErrBadJSONAPIStructTag
+	switch annotation {
+	case annotationClientID:
+	case annotationIgnore:
+		if len(args) != 1 {
+			return nil, ErrBadJSONAPIStructTag
+		}
+	default:
+		if len(args) < 2 {
+			return nil, ErrBadJSONAPIStructTag
+		}
 	}
 
 	return args, nil
@@ -326,7 +333,10 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 		}
 		annotation := args[0]
 
-		if annotation == annotationPrimary {
+		if annotation == annotationIgnore {
+			// Do Nothing
+			continue
+		} else if annotation == annotationPrimary {
 			// Check the JSON API Type
 			if data.Type != args[1] {
 				er = fmt.Errorf(

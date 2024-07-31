@@ -478,6 +478,54 @@ func TestUnmarshalSetsAttrs(t *testing.T) {
 	}
 }
 
+func TestUnmarshalWithIgnoreAnnotation(t *testing.T) {
+	// This test asserts similar to unmarshalSamplePayload but uses a model
+	// with almost all attributes ignored
+	type BlogWithIgnore struct {
+		ID            int       `jsonapi:"primary,blogs"`
+		ClientID      string    `jsonapi:"client-id"`
+		Title         string    `jsonapi:"-"`
+		Posts         []*Post   `jsonapi:"-"`
+		CurrentPost   *Post     `jsonapi:"-"`
+		CurrentPostID int       `jsonapi:"-"`
+		CreatedAt     time.Time `jsonapi:"-"`
+		ViewCount     int       `jsonapi:"-"`
+
+		Links Links `jsonapi:"-"`
+	}
+
+	in := samplePayload()
+	out := new(BlogWithIgnore)
+
+	if err := UnmarshalPayload(in, out); err != nil {
+		t.Fatal(err)
+	}
+
+	if out.Title != "" {
+		t.Fatalf("Title was serialized when it shouldn't have been")
+	}
+
+	if out.Posts != nil {
+		t.Fatalf("Posts was serialized when it shouldn't have been")
+	}
+
+	if out.CurrentPost != nil {
+		t.Fatalf("CurrentPost was serialized when it shouldn't have been")
+	}
+
+	if out.CurrentPostID != 0 {
+		t.Fatalf("CurrentPostID was serialized when it shouldn't have been")
+	}
+
+	if !out.CreatedAt.IsZero() {
+		t.Fatalf("CreatedAt was serialized when it shouldn't have been")
+	}
+
+	if out.ViewCount != 0 {
+		t.Fatalf("View count was serialized when it shouldn't have been")
+	}
+}
+
 func TestUnmarshal_Times(t *testing.T) {
 	aTime := time.Date(2016, 8, 17, 8, 27, 12, 0, time.UTC)
 
