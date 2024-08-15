@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -975,6 +976,87 @@ func TestNullableAttr_Bool(t *testing.T) {
 			if err := MarshalPayload(out, tc.input); err != nil {
 				t.Fatal(err)
 			}
+			// Use the standard JSON library to traverse the genereated JSON payload.
+			data := map[string]interface{}{}
+			json.Unmarshal(out.Bytes(), &data)
+			if tc.verification != nil {
+				if err := tc.verification(data); err != nil {
+					t.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func TestNullableRelationship(t *testing.T) {
+	comment := &Comment{
+		ID:   5,
+		Body: "Hello World",
+	}
+
+	for _, tc := range []struct {
+		desc         string
+		input        *WithNullableAttrs
+		verification func(data map[string]interface{}) error
+	}{
+		{
+			desc: "nullable_comment_unspecified",
+			input: &WithNullableAttrs{
+				ID:              5,
+				NullableComment: nil,
+			},
+			verification: func(root map[string]interface{}) error {
+				_, ok := root["data"].(map[string]interface{})["relationships"]
+
+				if got, want := ok, false; got != want {
+					return fmt.Errorf("got %v, want %v", got, want)
+				}
+				return nil
+			},
+		},
+		{
+			desc: "nullable_comment_null",
+			input: &WithNullableAttrs{
+				ID:              5,
+				NullableComment: NewNullNullableRelationship[*Comment](),
+			},
+			verification: func(root map[string]interface{}) error {
+				commentData, ok := root["data"].(map[string]interface{})["relationships"].(map[string]interface{})["nullable_comment"].(map[string]interface{})["data"]
+
+				if got, want := ok, true; got != want {
+					return fmt.Errorf("got %v, want %v", got, want)
+				}
+
+				if commentData != nil {
+					return fmt.Errorf("Expected nil data for nullable_comment but was '%v'", commentData)
+				}
+				return nil
+			},
+		},
+		{
+			desc: "nullable_comment_not_null",
+			input: &WithNullableAttrs{
+				ID:              5,
+				NullableComment: NewNullableRelationshipWithValue(comment),
+			},
+			verification: func(root map[string]interface{}) error {
+				relationships := root["data"].(map[string]interface{})["relationships"]
+				nullableComment := relationships.(map[string]interface{})["nullable_comment"]
+				idStr := nullableComment.(map[string]interface{})["data"].(map[string]interface{})["id"].(string)
+				id, _ := strconv.Atoi(idStr)
+				if got, want := id, comment.ID; got != want {
+					return fmt.Errorf("got %v, want %v", got, want)
+				}
+				return nil
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			out := bytes.NewBuffer(nil)
+			if err := MarshalPayload(out, tc.input); err != nil {
+				t.Fatal(err)
+			}
+
 			// Use the standard JSON library to traverse the genereated JSON payload.
 			data := map[string]interface{}{}
 			json.Unmarshal(out.Bytes(), &data)
