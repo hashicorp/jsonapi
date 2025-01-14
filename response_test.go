@@ -682,6 +682,131 @@ func TestSupportsAttributes(t *testing.T) {
 	}
 }
 
+func TestMarshalObjectAttribute(t *testing.T) {
+	now := time.Now()
+	testModel := &Company{
+		ID:   "5",
+		Name: "test",
+		Boss: Employee{
+			HiredAt: &now,
+		},
+		Manager: &Employee{
+			Firstname: "Dave",
+			HiredAt:   &now,
+		},
+		Teams: []Team{
+			{Name: "Team 1"},
+			{Name: "Team-2"},
+		},
+		People: []*People{
+			{Name: "Person-1"},
+			{Name: "Person-2"},
+		},
+	}
+
+	out := bytes.NewBuffer(nil)
+	if err := MarshalPayload(out, testModel); err != nil {
+		t.Fatal(err)
+	}
+
+	resp := new(OnePayload)
+	if err := json.NewDecoder(out).Decode(resp); err != nil {
+		t.Fatal(err)
+	}
+
+	data := resp.Data
+
+	if data.Attributes == nil {
+		t.Fatalf("Expected attributes")
+	}
+
+	boss, ok := data.Attributes["boss"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected boss attribute, got %v", data.Attributes)
+	}
+
+	hiredAt, ok := boss["hired-at"]
+	if !ok {
+		t.Fatalf("Expected boss attribute to contain a \"hired-at\" property, got %v", boss)
+	}
+
+	if hiredAt != now.UTC().Format(iso8601TimeFormat) {
+		t.Fatalf("Expected hired-at to be %s, got %s", now.UTC().Format(iso8601TimeFormat), hiredAt)
+	}
+
+	manager, ok := data.Attributes["manager"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected manager attribute, got %v", data.Attributes)
+	}
+
+	if manager["firstname"] != "Dave" {
+		t.Fatalf("Expected manager.firstname to be \"Dave\", got %v", manager)
+	}
+
+	people, ok := data.Attributes["people"].([]interface{})
+	if !ok {
+		t.Fatalf("Expected people attribute, got %v", data.Attributes)
+	}
+	if len(people) != 2 {
+		t.Fatalf("Expected 2 people, got %v", people)
+	}
+
+	teams, ok := data.Attributes["teams"].([]interface{})
+	if !ok {
+		t.Fatalf("Expected teams attribute, got %v", data.Attributes)
+	}
+	if len(teams) != 2 {
+		t.Fatalf("Expected 2 teams, got %v", teams)
+	}
+}
+
+func TestMarshalObjectAttributeWithEmptyNested(t *testing.T) {
+	testModel := &CompanyOmitEmpty{
+		ID:      "5",
+		Name:    "test",
+		Boss:    Employee{},
+		Manager: nil,
+		Teams:   []Team{},
+		People:  nil,
+	}
+
+	out := bytes.NewBuffer(nil)
+	if err := MarshalPayload(out, testModel); err != nil {
+		t.Fatal(err)
+	}
+
+	resp := new(OnePayload)
+	if err := json.NewDecoder(out).Decode(resp); err != nil {
+		t.Fatal(err)
+	}
+
+	data := resp.Data
+
+	if data.Attributes == nil {
+		t.Fatalf("Expected attributes")
+	}
+
+	_, ok := data.Attributes["boss"].(map[string]interface{})
+	if ok {
+		t.Fatalf("Expected omitted boss attribute, got %v", data.Attributes)
+	}
+
+	_, ok = data.Attributes["manager"].(map[string]interface{})
+	if ok {
+		t.Fatalf("Expected omitted manager attribute, got %v", data.Attributes)
+	}
+
+	_, ok = data.Attributes["people"].([]interface{})
+	if ok {
+		t.Fatalf("Expected omitted people attribute, got %v", data.Attributes)
+	}
+
+	_, ok = data.Attributes["teams"].([]interface{})
+	if ok {
+		t.Fatalf("Expected omitted teams attribute, got %v", data.Attributes)
+	}
+}
+
 func TestOmitsZeroTimes(t *testing.T) {
 	testModel := &Blog{
 		ID:        5,

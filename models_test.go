@@ -184,9 +184,20 @@ type Company struct {
 	ID        string    `jsonapi:"primary,companies"`
 	Name      string    `jsonapi:"attr,name"`
 	Boss      Employee  `jsonapi:"attr,boss"`
+	Manager   *Employee `jsonapi:"attr,manager"`
 	Teams     []Team    `jsonapi:"attr,teams"`
 	People    []*People `jsonapi:"attr,people"`
 	FoundedAt time.Time `jsonapi:"attr,founded-at,iso8601"`
+}
+
+type CompanyOmitEmpty struct {
+	ID        string    `jsonapi:"primary,companies"`
+	Name      string    `jsonapi:"attr,name,omitempty"`
+	Boss      Employee  `jsonapi:"attr,boss,omitempty"`
+	Manager   *Employee `jsonapi:"attr,manager,omitempty"`
+	Teams     []Team    `jsonapi:"attr,teams,omitempty"`
+	People    []*People `jsonapi:"attr,people,omitempty"`
+	FoundedAt time.Time `jsonapi:"attr,founded-at,iso8601,omitempty"`
 }
 
 type People struct {
