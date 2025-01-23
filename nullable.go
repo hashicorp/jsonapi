@@ -157,7 +157,7 @@ func (t *NullableRelationship[T]) SetInterface(value interface{}) {
 	t.Set(value.(T))
 }
 
-// IsNull indicate whether the field was sent, and had a value of `null`
+// IsNull indicates whether the field was sent, and had a value of `null`
 func (t NullableRelationship[T]) IsNull() bool {
 	_, foundNull := t[false]
 	return foundNull
