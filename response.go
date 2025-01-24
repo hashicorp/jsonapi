@@ -241,7 +241,7 @@ func visitModelNodeAttribute(args []string, node *Node, fieldValue reflect.Value
 		node.Attributes = make(map[string]interface{})
 	}
 
-	// Handle Nullable[T]
+	// Handle NullableAttr[T]
 	if strings.HasPrefix(fieldValue.Type().Name(), "NullableAttr[") {
 		// handle unspecified
 		if fieldValue.IsNil() {
@@ -353,6 +353,27 @@ func visitModelNodeRelation(model any, annotation string, args []string, node *N
 		omitEmpty = args[2] == annotationOmitEmpty
 	}
 
+	if node.Relationships == nil {
+		node.Relationships = make(map[string]interface{})
+	}
+
+	// Handle NullableRelationship[T]
+	if strings.HasPrefix(fieldValue.Type().Name(), "NullableRelationship[") {
+
+		if fieldValue.MapIndex(reflect.ValueOf(false)).IsValid() {
+			innerTypeIsSlice := fieldValue.MapIndex(reflect.ValueOf(false)).Type().Kind() == reflect.Slice
+			// handle explicit null
+			if innerTypeIsSlice {
+				node.Relationships[args[1]] = json.RawMessage("[]")
+			} else {
+				node.Relationships[args[1]] = json.RawMessage("{\"data\":null}")
+			}
+		} else if fieldValue.MapIndex(reflect.ValueOf(true)).IsValid() {
+			// handle value
+			fieldValue = fieldValue.MapIndex(reflect.ValueOf(true))
+		}
+	}
+
 	isSlice := fieldValue.Type().Kind() == reflect.Slice
 	if omitEmpty &&
 		(isSlice && fieldValue.Len() < 1 ||
@@ -415,10 +436,6 @@ func visitModelNodeRelation(model any, annotation string, args []string, node *N
 
 			fieldValue = reflect.ValueOf(collection)
 		}
-	}
-
-	if node.Relationships == nil {
-		node.Relationships = make(map[string]interface{})
 	}
 
 	var relLinks *Links
@@ -711,3 +728,4 @@ func convertToSliceInterface(i *interface{}) ([]interface{}, error) {
 	}
 	return response, nil
 }
+

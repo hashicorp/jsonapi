@@ -467,6 +467,14 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 					// model, depending on annotation
 					m := reflect.New(sliceType.Elem().Elem())
 
+					// Nullable relationships have an extra pointer indirection
+					// unwind that here
+					if strings.HasPrefix(fieldType.Type.Name(), "NullableRelationship[") {
+						if m.Kind() == reflect.Ptr {
+							m = reflect.New(sliceType.Elem().Elem().Elem())
+						}
+					}
+
 					err = unmarshalNodeMaybeChoice(&m, n, annotation, choiceMapping, included)
 					if err != nil {
 						er = err
@@ -483,10 +491,30 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 
 				buf := bytes.NewBuffer(nil)
 
-				json.NewEncoder(buf).Encode(
-					data.Relationships[args[1]],
-				)
-				json.NewDecoder(buf).Decode(relationship)
+				relDataStr := data.Relationships[args[1]]
+				json.NewEncoder(buf).Encode(relDataStr)
+
+				isExplicitNull := false
+				if err := json.NewDecoder(buf).Decode(relationship); err != nil {
+					// We couldn't decode the data into the relationship type
+					// check if this is a string "null" which indicates
+					// disassociating the relationship
+					if relDataStr == "null" {
+						isExplicitNull = true
+					}
+				}
+
+				// This will hold either the value of the choice type model or the actual
+				// model, depending on annotation
+				m := reflect.New(fieldValue.Type().Elem())
+
+				// Nullable relationships have an extra pointer indirection
+				// unwind that here
+				if strings.HasPrefix(fieldType.Type.Name(), "NullableRelationship[") {
+					if m.Kind() == reflect.Ptr {
+						m = reflect.New(fieldValue.Type().Elem().Elem())
+					}
+				}
 
 				/*
 					http://jsonapi.org/format/#document-resource-object-relationships
@@ -495,6 +523,14 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 					so unmarshal and set fieldValue only if data obj is not null
 				*/
 				if relationship.Data == nil {
+
+					// Explicit null supplied for the field value
+					// If a nullable relationship we set the
+					if isExplicitNull && strings.HasPrefix(fieldType.Type.Name(), "NullableRelationship[") {
+						fieldValue.Set(reflect.MakeMapWithSize(fieldValue.Type(), 1))
+						fieldValue.SetMapIndex(reflect.ValueOf(false), m)
+					}
+
 					continue
 				}
 
@@ -505,17 +541,18 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 					continue
 				}
 
-				// This will hold either the value of the choice type model or the actual
-				// model, depending on annotation
-				m := reflect.New(fieldValue.Type().Elem())
-
 				err = unmarshalNodeMaybeChoice(&m, relationship.Data, annotation, choiceMapping, included)
 				if err != nil {
 					er = err
 					break
 				}
 
-				fieldValue.Set(m)
+				if strings.HasPrefix(fieldType.Type.Name(), "NullableRelationship[") {
+					fieldValue.Set(reflect.MakeMapWithSize(fieldValue.Type(), 1))
+					fieldValue.SetMapIndex(reflect.ValueOf(true), m)
+				} else {
+					fieldValue.Set(m)
+				}
 			}
 		} else if annotation == annotationLinks {
 			if data.Links == nil {
