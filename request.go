@@ -493,7 +493,7 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 					// this indicates disassociating the relationship
 					isExplicitNull = true
 				} else if relationshipDecodeErr != nil {
-					fmt.Printf("decode err %v\n", relationshipDecodeErr)
+					er = fmt.Errorf("decode err %v\n", relationshipDecodeErr)
 				}
 
 				// This will hold either the value of the choice type model or the actual
@@ -517,11 +517,11 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 				if relationship.Data == nil {
 
 					// Explicit null supplied for the field value
-					// If a nullable relationship we set the
-					if isExplicitNull && strings.HasPrefix(fieldType.Type.Name(), "NullableRelationship[") {
-						fieldValue.Set(reflect.MakeMapWithSize(fieldValue.Type(), 1))
-						fieldValue.SetMapIndex(reflect.ValueOf(false), m)
-					}
+					// If a nullable relationship we set the field value to a map with a single entry
+					if isExplicitNull {
+                    	fieldValue.Set(reflect.MakeMapWithSize(fieldValue.Type(), 1))
+                    	fieldValue.SetMapIndex(reflect.ValueOf(false), m)
+                    }
 
 					continue
 				}
