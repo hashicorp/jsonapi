@@ -45,13 +45,13 @@ type NullableAttr[T any] map[bool]T
 //
 // If the relationship is expected to be optional, add the `omitempty` JSON tags. Do NOT use `*NullableRelationship`!
 //
-// Slice types are allowed for NullableRelationships.
+// Slice types are not currently supported for NullableRelationships as the nullable nature can be expressed via empty array
 // `polyrelation` JSON tags are NOT currently supported.
 //
 // NullableRelationships must have an inner type of pointer:
 //
 // - NullableRelationship[*Comment] - valid
-// - NullableRelationship[[]*Comment] - valid
+// - NullableRelationship[[]*Comment] - invalid
 // - NullableRelationship[Comment] - invalid
 type NullableRelationship[T any] map[bool]T
 

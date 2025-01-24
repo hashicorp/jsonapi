@@ -36,14 +36,13 @@ type TimestampModel struct {
 }
 
 type WithNullableAttrs struct {
-	ID               int                              `jsonapi:"primary,with-nullables"`
-	Name             string                           `jsonapi:"attr,name"`
-	IntTime          NullableAttr[time.Time]          `jsonapi:"attr,int_time,omitempty"`
-	RFC3339Time      NullableAttr[time.Time]          `jsonapi:"attr,rfc3339_time,rfc3339,omitempty"`
-	ISO8601Time      NullableAttr[time.Time]          `jsonapi:"attr,iso8601_time,iso8601,omitempty"`
-	Bool             NullableAttr[bool]               `jsonapi:"attr,bool,omitempty"`
-	NullableComment  NullableRelationship[*Comment]   `jsonapi:"relation,nullable_comment,omitempty"`
-	NullableComments NullableRelationship[[]*Comment] `jsonapi:"relation,nullable_comments,omitempty"`
+	ID              int                            `jsonapi:"primary,with-nullables"`
+	Name            string                         `jsonapi:"attr,name"`
+	IntTime         NullableAttr[time.Time]        `jsonapi:"attr,int_time,omitempty"`
+	RFC3339Time     NullableAttr[time.Time]        `jsonapi:"attr,rfc3339_time,rfc3339,omitempty"`
+	ISO8601Time     NullableAttr[time.Time]        `jsonapi:"attr,iso8601_time,iso8601,omitempty"`
+	Bool            NullableAttr[bool]             `jsonapi:"attr,bool,omitempty"`
+	NullableComment NullableRelationship[*Comment] `jsonapi:"relation,nullable_comment,omitempty"`
 }
 
 type Car struct {

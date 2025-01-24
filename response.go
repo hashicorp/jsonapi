@@ -374,6 +374,27 @@ func visitModelNodeRelation(model any, annotation string, args []string, node *N
 		}
 	}
 
+	if node.Relationships == nil {
+		node.Relationships = make(map[string]interface{})
+	}
+
+	// Handle NullableRelationship[T]
+	if strings.HasPrefix(fieldValue.Type().Name(), "NullableRelationship[") {
+
+		if fieldValue.MapIndex(reflect.ValueOf(false)).IsValid() {
+			innerTypeIsSlice := fieldValue.MapIndex(reflect.ValueOf(false)).Type().Kind() == reflect.Slice
+			// handle explicit null
+			if innerTypeIsSlice {
+				node.Relationships[args[1]] = json.RawMessage("[]")
+			} else {
+				node.Relationships[args[1]] = json.RawMessage("{\"data\":null}")
+			}
+		} else if fieldValue.MapIndex(reflect.ValueOf(true)).IsValid() {
+			// handle value
+			fieldValue = fieldValue.MapIndex(reflect.ValueOf(true))
+		}
+	}
+
 	isSlice := fieldValue.Type().Kind() == reflect.Slice
 	if omitEmpty &&
 		(isSlice && fieldValue.Len() < 1 ||
@@ -616,9 +637,174 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				break
 			}
 		} else if annotation == annotationRelation || annotation == annotationPolyRelation {
-			er = visitModelNodeRelation(model, annotation, args, node, fieldValue, included, sideload)
-			if er != nil {
-				break
+			var omitEmpty bool
+
+			//add support for 'omitempty' struct tag for marshaling as absent
+			if len(args) > 2 {
+				omitEmpty = args[2] == annotationOmitEmpty
+			}
+
+			// Handle NullableRelationship[T]
+			if strings.HasPrefix(fieldValue.Type().Name(), "NullableRelationship[") {
+
+				if fieldValue.MapIndex(reflect.ValueOf(false)).IsValid() {
+					innerTypeIsSlice := fieldValue.MapIndex(reflect.ValueOf(false)).Type().Kind() == reflect.Slice
+					// handle explicit null
+					if innerTypeIsSlice {
+						node.Relationships[args[1]] = json.RawMessage("[]")
+					} else {
+						node.Relationships[args[1]] = json.RawMessage("{\"data\":null}")
+					}
+					continue
+				} else if fieldValue.MapIndex(reflect.ValueOf(true)).IsValid() {
+					// handle value
+					fieldValue = fieldValue.MapIndex(reflect.ValueOf(true))
+				}
+			}
+
+			isSlice := fieldValue.Type().Kind() == reflect.Slice
+			if omitEmpty &&
+				(isSlice && fieldValue.Len() < 1 ||
+					(!isSlice && fieldValue.IsNil())) {
+				continue
+			}
+
+			if annotation == annotationPolyRelation {
+				// for polyrelation, we'll snoop out the actual relation model
+				// through the choice type value by choosing the first non-nil
+				// field that has a jsonapi type annotation and overwriting
+				// `fieldValue` so normal annotation-assisted marshaling
+				// can continue
+				if !isSlice {
+					choiceValue := fieldValue
+
+					// must be a pointer type
+					if choiceValue.Type().Kind() != reflect.Ptr {
+						er = ErrUnexpectedType
+						break
+					}
+
+					if choiceValue.IsNil() {
+						fieldValue = reflect.ValueOf(nil)
+					}
+					structValue := choiceValue.Elem()
+
+					// Short circuit if field is omitted from model
+					if !structValue.IsValid() {
+						break
+					}
+
+					if found, err := selectChoiceTypeStructField(structValue); err == nil {
+						fieldValue = found
+					}
+				} else {
+					// A slice polyrelation field can be... polymorphic... meaning
+					// that we might snoop different types within each slice element.
+					// Each snooped value will added to this collection and then
+					// the recursion will take care of the rest. The only special case
+					// is nil. For that, we'll just choose the first
+					collection := make([]interface{}, 0)
+
+					for i := 0; i < fieldValue.Len(); i++ {
+						itemValue := fieldValue.Index(i)
+						// Once again, must be a pointer type
+						if itemValue.Type().Kind() != reflect.Ptr {
+							er = ErrUnexpectedType
+							break
+						}
+
+						if itemValue.IsNil() {
+							er = ErrUnexpectedNil
+							break
+						}
+
+						structValue := itemValue.Elem()
+
+						if found, err := selectChoiceTypeStructField(structValue); err == nil {
+							collection = append(collection, found.Interface())
+						}
+					}
+
+					if er != nil {
+						break
+					}
+
+					fieldValue = reflect.ValueOf(collection)
+				}
+			}
+
+			var relLinks *Links
+			if linkableModel, ok := model.(RelationshipLinkable); ok {
+				relLinks = linkableModel.JSONAPIRelationshipLinks(args[1])
+			}
+
+			var relMeta *Meta
+			if metableModel, ok := model.(RelationshipMetable); ok {
+				relMeta = metableModel.JSONAPIRelationshipMeta(args[1])
+			}
+
+			if isSlice {
+				// to-many relationship
+				relationship, err := visitModelNodeRelationships(
+					fieldValue,
+					included,
+					sideload,
+				)
+				if err != nil {
+					er = err
+					break
+				}
+				relationship.Links = relLinks
+				relationship.Meta = relMeta
+
+				if sideload {
+					shallowNodes := []*Node{}
+					for _, n := range relationship.Data {
+						appendIncluded(included, n)
+						shallowNodes = append(shallowNodes, toShallowNode(n))
+					}
+
+					node.Relationships[args[1]] = &RelationshipManyNode{
+						Data:  shallowNodes,
+						Links: relationship.Links,
+						Meta:  relationship.Meta,
+					}
+				} else {
+					node.Relationships[args[1]] = relationship
+				}
+			} else {
+				// to-one relationships
+
+				// Handle null relationship case
+				if fieldValue.IsNil() {
+					node.Relationships[args[1]] = &RelationshipOneNode{Data: nil}
+					continue
+				}
+
+				relationship, err := visitModelNode(
+					fieldValue.Interface(),
+					included,
+					sideload,
+				)
+				if err != nil {
+					er = err
+					break
+				}
+
+				if sideload {
+					appendIncluded(included, relationship)
+					node.Relationships[args[1]] = &RelationshipOneNode{
+						Data:  toShallowNode(relationship),
+						Links: relLinks,
+						Meta:  relMeta,
+					}
+				} else {
+					node.Relationships[args[1]] = &RelationshipOneNode{
+						Data:  relationship,
+						Links: relLinks,
+						Meta:  relMeta,
+					}
+				}
 			}
 		} else if annotation == annotationLinks {
 			// Nothing. Ignore this field, as Links fields are only for unmarshaling requests.

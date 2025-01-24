@@ -1119,17 +1119,6 @@ func TestNullableRelationship(t *testing.T) {
 		Body: "Hello World",
 	}
 
-	comments := []*Comment{
-		{
-			ID:   6,
-			Body: "Hello World",
-		},
-		{
-			ID:   7,
-			Body: "Hello World",
-		},
-	}
-
 	for _, tc := range []struct {
 		desc         string
 		input        *WithNullableAttrs
@@ -1157,10 +1146,14 @@ func TestNullableRelationship(t *testing.T) {
 				NullableComment: NewNullNullableRelationship[*Comment](),
 			},
 			verification: func(root map[string]interface{}) error {
-				_, ok := root["data"].(map[string]interface{})["relationships"].(map[string]interface{})["nullable_comment"]
+				commentData, ok := root["data"].(map[string]interface{})["relationships"].(map[string]interface{})["nullable_comment"].(map[string]interface{})["data"]
 
 				if got, want := ok, true; got != want {
 					return fmt.Errorf("got %v, want %v", got, want)
+				}
+
+				if commentData != nil {
+					return fmt.Errorf("Expected nil data for nullable_comment but was '%v'", commentData)
 				}
 				return nil
 			},
@@ -1179,58 +1172,6 @@ func TestNullableRelationship(t *testing.T) {
 				if got, want := id, comment.ID; got != want {
 					return fmt.Errorf("got %v, want %v", got, want)
 				}
-				return nil
-			},
-		},
-		{
-			desc: "nullable_comments_unspecified",
-			input: &WithNullableAttrs{
-				ID:               5,
-				NullableComments: nil,
-			},
-			verification: func(root map[string]interface{}) error {
-				_, ok := root["data"].(map[string]interface{})["relationships"]
-
-				if got, want := ok, false; got != want {
-					return fmt.Errorf("got %v, want %v", got, want)
-				}
-				return nil
-			},
-		},
-		{
-			desc: "nullable_comments_null",
-			input: &WithNullableAttrs{
-				ID:               5,
-				NullableComments: NewNullNullableRelationship[[]*Comment](),
-			},
-			verification: func(root map[string]interface{}) error {
-				_, ok := root["data"].(map[string]interface{})["relationships"].(map[string]interface{})["nullable_comments"]
-
-				if got, want := ok, true; got != want {
-					return fmt.Errorf("got %v, want %v", got, want)
-				}
-				return nil
-			},
-		},
-		{
-			desc: "nullable_comments_not_null",
-			input: &WithNullableAttrs{
-				ID:               5,
-				NullableComments: NewNullableRelationshipWithValue(comments),
-			},
-			verification: func(root map[string]interface{}) error {
-				relationships := root["data"].(map[string]interface{})["relationships"]
-				nullableComments := relationships.(map[string]interface{})["nullable_comments"].(map[string]interface{})["data"].([]interface{})
-
-				for i := 0; i < len(comments); i++ {
-					c := nullableComments[i].(map[string]interface{})
-					idStr := c["id"].(string)
-					id, _ := strconv.Atoi(idStr)
-					if got, want := id, comments[i].ID; got != want {
-						return fmt.Errorf("got %v, want %v", got, want)
-					}
-				}
-
 				return nil
 			},
 		},
