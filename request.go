@@ -60,6 +60,11 @@ func newErrUnsupportedPtrType(rf reflect.Value, t reflect.Type, structField refl
 	return ErrUnsupportedPtrType{rf, t, structField}
 }
 
+type includedNode struct {
+	node  *Node
+	model *reflect.Value
+}
+
 // UnmarshalPayload converts an io into a struct instance using jsonapi tags on
 // struct fields. This method supports single request payloads only, at the
 // moment. Bulk creates and updates are not supported yet.
@@ -94,16 +99,16 @@ func newErrUnsupportedPtrType(rf reflect.Value, t reflect.Type, structField refl
 // model interface{} should be a pointer to a struct.
 func UnmarshalPayload(in io.Reader, model interface{}) error {
 	payload := new(OnePayload)
+	includedMap := make(map[string]*includedNode)
 
 	if err := json.NewDecoder(in).Decode(payload); err != nil {
 		return err
 	}
 
 	if payload.Included != nil {
-		includedMap := make(map[string]*Node)
 		for _, included := range payload.Included {
 			key := fmt.Sprintf("%s,%s", included.Type, included.ID)
-			includedMap[key] = included
+			includedMap[key] = &includedNode{included, nil}
 		}
 
 		return unmarshalNode(payload.Data, reflect.ValueOf(model), &includedMap)
@@ -120,13 +125,13 @@ func UnmarshalManyPayload(in io.Reader, t reflect.Type) ([]interface{}, error) {
 		return nil, err
 	}
 
-	models := []interface{}{}         // will be populated from the "data"
-	includedMap := map[string]*Node{} // will be populate from the "included"
+	models := []interface{}{}                 // will be populated from the "data"
+	includedMap := map[string]*includedNode{} // will be populate from the "included"
 
 	if payload.Included != nil {
 		for _, included := range payload.Included {
 			key := fmt.Sprintf("%s,%s", included.Type, included.ID)
-			includedMap[key] = included
+			includedMap[key] = &includedNode{included, nil}
 		}
 	}
 
@@ -263,7 +268,7 @@ func getStructTags(field reflect.StructField) ([]string, error) {
 
 // unmarshalNodeMaybeChoice populates a model that may or may not be
 // a choice type struct that corresponds to a polyrelation or relation
-func unmarshalNodeMaybeChoice(m *reflect.Value, data *Node, annotation string, choiceTypeMapping map[string]structFieldIndex, included *map[string]*Node) error {
+func unmarshalNodeMaybeChoice(m *reflect.Value, data *Node, annotation string, choiceTypeMapping map[string]structFieldIndex, included *map[string]*includedNode) error {
 	// This will hold either the value of the choice type model or the actual
 	// model, depending on annotation
 	var actualModel = *m
@@ -300,7 +305,7 @@ func unmarshalNodeMaybeChoice(m *reflect.Value, data *Node, annotation string, c
 	return nil
 }
 
-func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) (err error) {
+func unmarshalNode(data *Node, model reflect.Value, included *map[string]*includedNode) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("data is not a jsonapi representation of '%v'", model.Type())
@@ -509,6 +514,21 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 				// model, depending on annotation
 				m := reflect.New(fieldValue.Type().Elem())
 
+				includedKey := fmt.Sprintf("%s,%s", relationship.Data.Type, relationship.Data.ID)
+				if included != nil && (*included)[includedKey] != nil {
+					if (*included)[includedKey].model != nil {
+						fieldValue.Set(*(*included)[includedKey].model)
+					} else {
+						(*included)[includedKey].model = &m
+						err := unmarshalNodeMaybeChoice(&m, (*included)[includedKey].node, annotation, choiceMapping, included)
+						if err != nil {
+							er = err
+							break
+						}
+						fieldValue.Set(m)
+					}
+					continue
+				}
 				err = unmarshalNodeMaybeChoice(&m, relationship.Data, annotation, choiceMapping, included)
 				if err != nil {
 					er = err
@@ -565,11 +585,11 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 	return er
 }
 
-func fullNode(n *Node, included *map[string]*Node) *Node {
+func fullNode(n *Node, included *map[string]*includedNode) *Node {
 	includedKey := fmt.Sprintf("%s,%s", n.Type, n.ID)
 
 	if included != nil && (*included)[includedKey] != nil {
-		return (*included)[includedKey]
+		return (*included)[includedKey].node
 	}
 
 	return n
