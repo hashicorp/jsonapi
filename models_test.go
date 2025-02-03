@@ -89,15 +89,36 @@ type GenericInterface struct {
 	Data interface{} `jsonapi:"attr,interface"`
 }
 
+type Organization struct {
+	ID             int       `jsonapi:"primary,organizations"`
+	ClientID       string    `jsonapi:"client-id"`
+	Name           string    `jsonapi:"attr,title"`
+	DefaultProject *Project  `jsonapi:"relation,default_project"`
+	CreatedAt      time.Time `jsonapi:"attr,created_at"`
+
+	Links Links `jsonapi:"links,omitempty"`
+}
+
+type Project struct {
+	ID           int           `jsonapi:"primary,projects"`
+	ClientID     string        `jsonapi:"client-id"`
+	Name         string        `jsonapi:"attr,name"`
+	Organization *Organization `jsonapi:"relation,organization"`
+
+	Links Links `jsonapi:"links,omitempty"`
+}
+
 type Blog struct {
-	ID            int       `jsonapi:"primary,blogs"`
-	ClientID      string    `jsonapi:"client-id"`
-	Title         string    `jsonapi:"attr,title"`
-	Posts         []*Post   `jsonapi:"relation,posts"`
-	CurrentPost   *Post     `jsonapi:"relation,current_post"`
-	CurrentPostID int       `jsonapi:"attr,current_post_id"`
-	CreatedAt     time.Time `jsonapi:"attr,created_at"`
-	ViewCount     int       `jsonapi:"attr,view_count"`
+	ID            int           `jsonapi:"primary,blogs"`
+	ClientID      string        `jsonapi:"client-id"`
+	Title         string        `jsonapi:"attr,title"`
+	CurrentPostID int           `jsonapi:"attr,current_post_id"`
+	CreatedAt     time.Time     `jsonapi:"attr,created_at"`
+	ViewCount     int           `jsonapi:"attr,view_count"`
+	Posts         []*Post       `jsonapi:"relation,posts"`
+	CurrentPost   *Post         `jsonapi:"relation,current_post"`
+	Organization  *Organization `jsonapi:"relation,organization"`
+	Project       *Project      `jsonapi:"relation,project"`
 
 	Links Links `jsonapi:"links,omitempty"`
 }

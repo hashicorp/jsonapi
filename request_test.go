@@ -689,6 +689,41 @@ func TestUnmarshalRelationships(t *testing.T) {
 	}
 }
 
+func TestUnmarshalMany_relationships_with_circular_inclusion(t *testing.T) {
+	data := samplePayloadWithCircularInclusion()
+	payload, err := json.Marshal(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := bytes.NewReader(payload)
+	model := reflect.TypeOf(new(Blog))
+
+	out, err := UnmarshalManyPayload(in, model)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result_1 := out[0].(*Blog)
+
+	if result_1.Project != result_1.Organization.DefaultProject {
+		t.Errorf("expected blog.project (%p) to hold the same pointer as blog.organization.default-project (%p) ", result_1.Project, result_1.Organization.DefaultProject)
+	}
+
+	if result_1.Organization != result_1.Project.Organization {
+		t.Errorf("expected blog.organization (%p) to hold the same pointer as blog.project.organization (%p)", result_1.Organization, result_1.Project.Organization)
+	}
+
+	result_2 := out[1].(*Blog)
+
+	if result_2.Project != result_2.Organization.DefaultProject {
+		t.Errorf("expected blog.project (%p) to hold the same pointer as blog.organization.default-project (%p) ", result_2.Project, result_2.Organization.DefaultProject)
+	}
+
+	if result_2.Organization != result_2.Project.Organization {
+		t.Errorf("expected blog.organization (%p) to hold the same pointer as blog.project.organization (%p)", result_2.Organization, result_2.Project.Organization)
+	}
+}
+
 func Test_UnmarshalPayload_polymorphicRelations(t *testing.T) {
 	in := bytes.NewReader([]byte(`{
 		"data": {
@@ -1376,6 +1411,105 @@ func TestUnmarshalCustomTypeAttributes_ErrInvalidType(t *testing.T) {
 	if err != ErrInvalidType {
 		t.Fatalf("Expected error to be %v, was %v", ErrInvalidType, err)
 	}
+}
+
+func samplePayloadWithCircularInclusion() *ManyPayload {
+	payload := &ManyPayload{
+		Data: []*Node{
+			{
+				Type:     "blogs",
+				ClientID: "1",
+				ID:       "1",
+				Attributes: map[string]interface{}{
+					"title":           "Foo",
+					"current_post_id": 1,
+					"created_at":      1436216820,
+					"view_count":      1000,
+				},
+				Relationships: map[string]interface{}{
+					"project": &RelationshipOneNode{
+						Data: &Node{
+							Type:     "projects",
+							ClientID: "1",
+							ID:       "1",
+						},
+					},
+					"organization": &RelationshipOneNode{
+						Data: &Node{
+							Type:     "organizations",
+							ClientID: "1",
+							ID:       "1",
+						},
+					},
+				},
+			},
+			{
+				Type:     "blogs",
+				ClientID: "2",
+				ID:       "2",
+				Attributes: map[string]interface{}{
+					"title":           "Foo2",
+					"current_post_id": 1,
+					"created_at":      1436216820,
+					"view_count":      1000,
+				},
+				Relationships: map[string]interface{}{
+					"project": &RelationshipOneNode{
+						Data: &Node{
+							Type:     "projects",
+							ClientID: "1",
+							ID:       "1",
+						},
+					},
+					"organization": &RelationshipOneNode{
+						Data: &Node{
+							Type:     "organizations",
+							ClientID: "1",
+							ID:       "1",
+						},
+					},
+				},
+			},
+		},
+		Included: []*Node{
+			{
+				Type:     "projects",
+				ClientID: "1",
+				ID:       "1",
+				Attributes: map[string]interface{}{
+					"name": "Bar",
+				},
+				Relationships: map[string]interface{}{
+					"organization": &RelationshipOneNode{
+						Data: &Node{
+							Type:     "organizations",
+							ClientID: "1",
+							ID:       "1",
+						},
+					},
+				},
+			},
+			{
+				Type:     "organizations",
+				ClientID: "1",
+				ID:       "1",
+				Attributes: map[string]interface{}{
+					"name": "Baz",
+				},
+				Relationships: map[string]interface{}{
+					"default_project": &RelationshipOneNode{
+						Data: &Node{
+							Type:     "projects",
+							ClientID: "1",
+							ID:       "1",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return payload
 }
 
 func samplePayloadWithoutIncluded() map[string]interface{} {
