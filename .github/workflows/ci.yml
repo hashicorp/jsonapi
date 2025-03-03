@@ -23,7 +23,7 @@ jobs:
         uses: golangci/golangci-lint-action@08e2f20817b15149a52b5b3ebe7de50aff2ba8c5
 
       - name: run test and generate coverage report
-        run: go test -race . -v -coverprofile=coverage.out
+        run: go test -race ./... -v -coverprofile=coverage.out
 
       - name: Upload coverage report 
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
