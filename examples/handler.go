@@ -69,6 +69,11 @@ func (h *ExampleHandler) updateBlog(w http.ResponseWriter, r *http.Request) {
 
 	blog := new(Blog)
 
+	if r.Body == nil {
+		http.Error(w, "request body cannot be empty", http.StatusBadRequest)
+		return
+	}
+
 	if err := jsonapiRuntime.UnmarshalPayload(r.Body, blog); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

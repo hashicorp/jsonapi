@@ -112,7 +112,7 @@ func TestHttpErrorWhenMethodDoesNotMatch(t *testing.T) {
 	handler := &ExampleHandler{}
 	handler.ServeHTTP(rr, r)
 
-	if rr.Code != http.StatusNotFound {
-		t.Fatal("expected HTTP Status Not Found status error")
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected HTTP Status Bad Request (400), got %d", rr.Code)
 	}
 }
