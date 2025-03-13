@@ -2,7 +2,8 @@ name: CI
 on:
   push:
     branches:
-      - build-test
+      - main
+  pull_request:
 
 jobs:
   unit-test:
