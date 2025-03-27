@@ -454,10 +454,10 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 				buf := bytes.NewBuffer(nil)
 
 				if err := json.NewEncoder(buf).Encode(data.Relationships[args[1]]); err != nil {
-					return err
+					er = err
 				}
 				if err := json.NewDecoder(buf).Decode(relationship); err != nil {
-					return err
+					er = err
 				}
 
 				data := relationship.Data
@@ -488,7 +488,7 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 				buf := bytes.NewBuffer(nil)
 				relDataStr := data.Relationships[args[1]]
 				if err := json.NewEncoder(buf).Encode(relDataStr); err != nil {
-					return err
+					er = err
 				}
 
 				isExplicitNull := false
