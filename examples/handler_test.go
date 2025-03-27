@@ -102,7 +102,7 @@ func TestHttpErrorWhenHeaderDoesNotMatch(t *testing.T) {
 }
 
 func TestHttpErrorWhenMethodDoesNotMatch(t *testing.T) {
-	r, err := http.NewRequest(http.MethodPatch, "/blogs", nil)
+	r, err := http.NewRequest(http.MethodOptions, "/blogs", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestHttpErrorWhenMethodDoesNotMatch(t *testing.T) {
 	handler := &ExampleHandler{}
 	handler.ServeHTTP(rr, r)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("expected HTTP Status Bad Request (400), got %d", rr.Code)
+	if rr.Code != http.StatusNotFound {
+		t.Fatal("expected HTTP Status Not Found status error")
 	}
 }
