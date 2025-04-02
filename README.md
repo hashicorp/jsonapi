@@ -603,4 +603,6 @@ folder--containing `src`.
 
 ## Contributing
 
-Fork, Change, Pull Request *with tests*.
+If you find an issue with this package, please create an issue in GitHub. If you'd like, we welcome any contributions. Fork this repository and submit a pull request.
+
+If you are making relevant changes that is worth communicating to our users, please include a note about it in our CHANGELOG.md. Please include it as part of the PR where you are submitting your changes.
