@@ -473,7 +473,7 @@ func TestUnmarshalNullableRelationshipsNonExistentValue(t *testing.T) {
 
 	outBuf := bytes.NewBuffer(nil)
 	if err := json.NewEncoder(outBuf).Encode(payload); err != nil {
-		log.Fatalf("failed to encode: %v", err)
+		t.Fatalf("failed to encode: %v", err)
 	}
 
 	out := new(WithNullableAttrs)
