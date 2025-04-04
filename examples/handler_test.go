@@ -102,7 +102,7 @@ func TestHttpErrorWhenHeaderDoesNotMatch(t *testing.T) {
 }
 
 func TestHttpErrorWhenMethodDoesNotMatch(t *testing.T) {
-	r, err := http.NewRequest(http.MethodPatch, "/blogs", nil)
+	r, err := http.NewRequest(http.MethodOptions, "/blogs", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
