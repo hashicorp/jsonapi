@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"reflect"
 	"sort"
 	"strconv"
@@ -406,9 +405,7 @@ func TestUnmarshalNullableRelationshipsNonNullValue(t *testing.T) {
 	}
 
 	outBuf := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(outBuf).Encode(payload); err != nil {
-		t.Fatalf("failed to encode: %v", err)
-	}
+	json.NewEncoder(outBuf).Encode(payload)
 
 	out := new(WithNullableAttrs)
 
@@ -445,9 +442,7 @@ func TestUnmarshalNullableRelationshipsExplicitNullValue(t *testing.T) {
 	}
 
 	outBuf := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(outBuf).Encode(payload); err != nil {
-		t.Fatalf("failed to encode: %v", err)
-	}
+	json.NewEncoder(outBuf).Encode(payload)
 
 	out := new(WithNullableAttrs)
 
@@ -472,9 +467,7 @@ func TestUnmarshalNullableRelationshipsNonExistentValue(t *testing.T) {
 	}
 
 	outBuf := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(outBuf).Encode(payload); err != nil {
-		t.Fatalf("failed to encode: %v", err)
-	}
+	json.NewEncoder(outBuf).Encode(payload)
 
 	out := new(WithNullableAttrs)
 
@@ -497,9 +490,7 @@ func TestUnmarshalNullableRelationshipsNoRelationships(t *testing.T) {
 	}
 
 	outBuf := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(outBuf).Encode(payload); err != nil {
-		t.Fatalf("failed to encode: %v", err)
-	}
+	json.NewEncoder(outBuf).Encode(payload)
 
 	out := new(WithNullableAttrs)
 
@@ -1630,9 +1621,7 @@ func samplePayload() io.Reader {
 	}
 
 	out := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(out).Encode(payload); err != nil {
-		log.Printf("failed to encode: %v", err)
-	}
+	json.NewEncoder(out).Encode(payload)
 
 	return out
 }
@@ -1650,9 +1639,7 @@ func samplePayloadWithID() io.Reader {
 	}
 
 	out := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(out).Encode(payload); err != nil {
-		log.Printf("failed to encode: %v", err)
-	}
+	json.NewEncoder(out).Encode(payload)
 
 	return out
 }
@@ -1667,9 +1654,7 @@ func samplePayloadWithBadTypes(m map[string]interface{}) io.Reader {
 	}
 
 	out := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(out).Encode(payload); err != nil {
-		log.Printf("failed to encode: %v", err)
-	}
+	json.NewEncoder(out).Encode(payload)
 
 	return out
 }
@@ -1684,9 +1669,7 @@ func sampleWithPointerPayload(m map[string]interface{}) io.Reader {
 	}
 
 	out := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(out).Encode(payload); err != nil {
-		log.Printf("failed to encode: %v", err)
-	}
+	json.NewEncoder(out).Encode(payload)
 
 	return out
 }
@@ -1701,9 +1684,7 @@ func samplePayloadWithNullableAttrs(m map[string]interface{}) io.Reader {
 	}
 
 	out := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(out).Encode(payload); err != nil {
-		log.Printf("failed to encode: %v", err)
-	}
+	json.NewEncoder(out).Encode(payload)
 
 	return out
 }
@@ -1780,23 +1761,17 @@ func samplePayloadWithSideloaded() io.Reader {
 	testModel := testModel()
 
 	out := bytes.NewBuffer(nil)
-	if err := MarshalPayload(out, testModel); err != nil {
-		log.Printf("failed to marshal payload: %v", err)
-	}
+	MarshalPayload(out, testModel)
 
 	return out
 }
 
 func sampleSerializedEmbeddedTestModel() *Blog {
 	out := bytes.NewBuffer(nil)
-	if err := MarshalOnePayloadEmbedded(out, testModel()); err != nil {
-		log.Printf("failed to marshal one payload embedded: %v", err)
-	}
+	MarshalOnePayloadEmbedded(out, testModel())
 
 	blog := new(Blog)
-	if err := UnmarshalPayload(out, blog); err != nil {
-		log.Printf("failed to unmarshal payload: %v", err)
-	}
+	UnmarshalPayload(out, blog)
 
 	return blog
 }

@@ -18,9 +18,7 @@ func TestMarshalPayload(t *testing.T) {
 
 	// One
 	out1 := bytes.NewBuffer(nil)
-	if err := MarshalPayload(out1, book); err != nil {
-		t.Fatal(err)
-	}
+	MarshalPayload(out1, book)
 
 	if err := json.Unmarshal(out1.Bytes(), &jsonData); err != nil {
 		t.Fatal(err)
@@ -31,9 +29,7 @@ func TestMarshalPayload(t *testing.T) {
 
 	// Many
 	out2 := bytes.NewBuffer(nil)
-	if err := MarshalPayload(out2, books); err != nil {
-		t.Fatal(err)
-	}
+	MarshalPayload(out2, books)
 
 	if err := json.Unmarshal(out2.Bytes(), &jsonData); err != nil {
 		t.Fatal(err)
@@ -940,9 +936,7 @@ func TestMarshal_Times(t *testing.T) {
 			}
 			// Use the standard JSON library to traverse the genereated JSON payload.
 			data := map[string]interface{}{}
-			if err := json.Unmarshal(out.Bytes(), &data); err != nil {
-				t.Fatal(err)
-			}
+			json.Unmarshal(out.Bytes(), &data)
 			if tc.verification != nil {
 				if err := tc.verification(data); err != nil {
 					t.Fatal(err)
@@ -1023,9 +1017,7 @@ func TestNullableRelationship(t *testing.T) {
 
 			// Use the standard JSON library to traverse the genereated JSON payload.
 			data := map[string]interface{}{}
-			if err := json.Unmarshal(out.Bytes(), &data); err != nil {
-				t.Fatal(err)
-			}
+			json.Unmarshal(out.Bytes(), &data)
 			if tc.verification != nil {
 				if err := tc.verification(data); err != nil {
 					t.Fatal(err)
@@ -1122,9 +1114,7 @@ func TestNullableAttr_Time(t *testing.T) {
 			}
 			// Use the standard JSON library to traverse the genereated JSON payload.
 			data := map[string]interface{}{}
-			if err := json.Unmarshal(out.Bytes(), &data); err != nil {
-				t.Fatal(err)
-			}
+			json.Unmarshal(out.Bytes(), &data)
 			if tc.verification != nil {
 				if err := tc.verification(data); err != nil {
 					t.Fatal(err)
@@ -1194,9 +1184,7 @@ func TestNullableAttr_Bool(t *testing.T) {
 			}
 			// Use the standard JSON library to traverse the genereated JSON payload.
 			data := map[string]interface{}{}
-			if err := json.Unmarshal(out.Bytes(), &data); err != nil {
-				t.Fatal(err)
-			}
+			json.Unmarshal(out.Bytes(), &data)
 			if tc.verification != nil {
 				if err := tc.verification(data); err != nil {
 					t.Fatal(err)

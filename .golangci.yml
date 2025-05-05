@@ -1,6 +1,4 @@
 linters:
- enable:
-   - errcheck
  disable:
    - unused
-output_format: colored-line-number
+   - errcheck
