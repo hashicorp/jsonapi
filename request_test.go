@@ -249,7 +249,6 @@ func TestUnmarshalToStructWithPointerAttr_BadType_Struct(t *testing.T) {
 
 func TestUnmarshalToStructWithPointerAttr_BadType_IntSlice(t *testing.T) {
 	out := new(WithPointer)
-	type FooStruct struct{ A, B int }
 	in := map[string]interface{}{
 		"name": []int{4, 5}, // This is the wrong type.
 	}
@@ -405,7 +404,9 @@ func TestUnmarshalNullableRelationshipsNonNullValue(t *testing.T) {
 	}
 
 	outBuf := bytes.NewBuffer(nil)
-	json.NewEncoder(outBuf).Encode(payload)
+	if err := json.NewEncoder(outBuf).Encode(payload); err != nil {
+		t.Fatal(err)
+	}
 
 	out := new(WithNullableAttrs)
 
@@ -442,7 +443,9 @@ func TestUnmarshalNullableRelationshipsExplicitNullValue(t *testing.T) {
 	}
 
 	outBuf := bytes.NewBuffer(nil)
-	json.NewEncoder(outBuf).Encode(payload)
+	if err := json.NewEncoder(outBuf).Encode(payload); err != nil {
+		t.Fatal(err)
+	}
 
 	out := new(WithNullableAttrs)
 
@@ -467,7 +470,9 @@ func TestUnmarshalNullableRelationshipsNonExistentValue(t *testing.T) {
 	}
 
 	outBuf := bytes.NewBuffer(nil)
-	json.NewEncoder(outBuf).Encode(payload)
+	if err := json.NewEncoder(outBuf).Encode(payload); err != nil {
+		t.Fatal(err)
+	}
 
 	out := new(WithNullableAttrs)
 
@@ -490,7 +495,9 @@ func TestUnmarshalNullableRelationshipsNoRelationships(t *testing.T) {
 	}
 
 	outBuf := bytes.NewBuffer(nil)
-	json.NewEncoder(outBuf).Encode(payload)
+	if err := json.NewEncoder(outBuf).Encode(payload); err != nil {
+		t.Fatal(err)
+	}
 
 	out := new(WithNullableAttrs)
 
@@ -1120,7 +1127,10 @@ func TestUnmarshalNestedRelationships(t *testing.T) {
 }
 
 func TestUnmarshalRelationshipsSerializedEmbedded(t *testing.T) {
-	out := sampleSerializedEmbeddedTestModel()
+	out, err := sampleSerializedEmbeddedTestModel()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if out.CurrentPost == nil {
 		t.Fatalf("Current post was not materialized")
@@ -1169,7 +1179,10 @@ func TestUnmarshalNestedRelationshipsEmbedded(t *testing.T) {
 }
 
 func TestUnmarshalRelationshipsSideloaded(t *testing.T) {
-	payload := samplePayloadWithSideloaded()
+	payload, err := samplePayloadWithSideloaded()
+	if err != nil {
+		t.Fatal(err)
+	}
 	out := new(Blog)
 
 	if err := UnmarshalPayload(payload, out); err != nil {
@@ -1190,7 +1203,10 @@ func TestUnmarshalRelationshipsSideloaded(t *testing.T) {
 }
 
 func TestUnmarshalNestedRelationshipsSideloaded(t *testing.T) {
-	payload := samplePayloadWithSideloaded()
+	payload, err := samplePayloadWithSideloaded()
+	if err != nil {
+		t.Fatal(err)
+	}
 	out := new(Blog)
 
 	if err := UnmarshalPayload(payload, out); err != nil {
@@ -1621,7 +1637,7 @@ func samplePayload() io.Reader {
 	}
 
 	out := bytes.NewBuffer(nil)
-	json.NewEncoder(out).Encode(payload)
+	json.NewEncoder(out).Encode(payload) //nolint:errcheck
 
 	return out
 }
@@ -1639,7 +1655,7 @@ func samplePayloadWithID() io.Reader {
 	}
 
 	out := bytes.NewBuffer(nil)
-	json.NewEncoder(out).Encode(payload)
+	json.NewEncoder(out).Encode(payload) //nolint:errcheck
 
 	return out
 }
@@ -1654,7 +1670,7 @@ func samplePayloadWithBadTypes(m map[string]interface{}) io.Reader {
 	}
 
 	out := bytes.NewBuffer(nil)
-	json.NewEncoder(out).Encode(payload)
+	json.NewEncoder(out).Encode(payload) //nolint:errcheck
 
 	return out
 }
@@ -1669,7 +1685,7 @@ func sampleWithPointerPayload(m map[string]interface{}) io.Reader {
 	}
 
 	out := bytes.NewBuffer(nil)
-	json.NewEncoder(out).Encode(payload)
+	json.NewEncoder(out).Encode(payload) //nolint:errcheck
 
 	return out
 }
@@ -1684,7 +1700,7 @@ func samplePayloadWithNullableAttrs(m map[string]interface{}) io.Reader {
 	}
 
 	out := bytes.NewBuffer(nil)
-	json.NewEncoder(out).Encode(payload)
+	json.NewEncoder(out).Encode(payload) //nolint:errcheck
 
 	return out
 }
@@ -1757,23 +1773,29 @@ func testModel() *Blog {
 	}
 }
 
-func samplePayloadWithSideloaded() io.Reader {
+func samplePayloadWithSideloaded() (io.Reader, error) {
 	testModel := testModel()
 
 	out := bytes.NewBuffer(nil)
-	MarshalPayload(out, testModel)
+	if err := MarshalPayload(out, testModel); err != nil {
+		return nil, err
+	}
 
-	return out
+	return out, nil
 }
 
-func sampleSerializedEmbeddedTestModel() *Blog {
+func sampleSerializedEmbeddedTestModel() (*Blog, error) {
 	out := bytes.NewBuffer(nil)
-	MarshalOnePayloadEmbedded(out, testModel())
+	if err := MarshalOnePayloadEmbedded(out, testModel()); err != nil {
+		return nil, err
+	}
 
 	blog := new(Blog)
-	UnmarshalPayload(out, blog)
+	if err := UnmarshalPayload(out, blog); err != nil {
+		return nil, err
+	}
 
-	return blog
+	return blog, nil
 }
 
 func TestUnmarshalNestedStructPtr(t *testing.T) {

@@ -47,7 +47,9 @@ func TestMarshalErrorsWritesTheExpectedPayload(t *testing.T) {
 			var writer io.Writer = buffer
 
 			_ = MarshalErrors(writer, testRow.In)
-			json.Unmarshal(buffer.Bytes(), &output)
+			if err := json.Unmarshal(buffer.Bytes(), &output); err != nil {
+				t.Fatalf("failed to unmarshal: %v", err)
+			}
 
 			if !reflect.DeepEqual(output, testRow.Out) {
 				t.Fatalf("Expected: \n%#v \nto equal: \n%#v", output, testRow.Out)
