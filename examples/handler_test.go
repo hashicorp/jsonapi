@@ -12,7 +12,9 @@ import (
 func TestExampleHandler_post(t *testing.T) {
 	blog := fixtureBlogCreate(1)
 	requestBody := bytes.NewBuffer(nil)
-	jsonapi.MarshalOnePayloadEmbedded(requestBody, blog)
+	if err := jsonapi.MarshalOnePayloadEmbedded(requestBody, blog); err != nil {
+		t.Fatal(err)
+	}
 
 	r, err := http.NewRequest(http.MethodPost, "/blogs?id=1", requestBody)
 	if err != nil {
@@ -36,7 +38,9 @@ func TestExampleHandler_put(t *testing.T) {
 		fixtureBlogCreate(3),
 	}
 	requestBody := bytes.NewBuffer(nil)
-	jsonapi.MarshalPayload(requestBody, blogs)
+	if err := jsonapi.MarshalPayload(requestBody, blogs); err != nil {
+		t.Fatal(err)
+	}
 
 	r, err := http.NewRequest(http.MethodPut, "/blogs", requestBody)
 	if err != nil {
@@ -102,7 +106,7 @@ func TestHttpErrorWhenHeaderDoesNotMatch(t *testing.T) {
 }
 
 func TestHttpErrorWhenMethodDoesNotMatch(t *testing.T) {
-	r, err := http.NewRequest(http.MethodPatch, "/blogs", nil)
+	r, err := http.NewRequest(http.MethodOptions, "/blogs", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
