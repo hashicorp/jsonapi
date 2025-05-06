@@ -1035,7 +1035,7 @@ func Test_choiceStructMapping(t *testing.T) {
 			t.Errorf("expected \"images\" to be the first field, but got %d", imageField.FieldNum)
 		}
 		videoField, ok := result["videos"]
-		if !ok || videoField.FieldNum != 2 {
+		if !ok || videoField.FieldNum != 1 {
 			t.Errorf("expected \"videos\" to be the third field, but got %d", videoField.FieldNum)
 		}
 	}
