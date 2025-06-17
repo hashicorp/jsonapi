@@ -246,7 +246,6 @@ type Video struct {
 
 type OneOfMedia struct {
 	Image       *Image
-	random      int
 	Video       *Video
 	RandomStuff *string
 }
