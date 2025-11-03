@@ -1,3 +1,6 @@
+// Copyright IBM Corp. 2015, 2025
+// SPDX-License-Identifier: MIT
+
 /*
 Package jsonapi provides a serializer and deserializer for jsonapi.org spec payloads.
 
