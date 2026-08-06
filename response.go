@@ -255,8 +255,8 @@ func visitModelNodeAttribute(args []string, node *Node, fieldValue reflect.Value
 
 	// Handle NullableAttr[T]
 	if strings.HasPrefix(fieldValue.Type().Name(), "NullableAttr[") {
-		// handle unspecified
-		if fieldValue.IsNil() {
+		// handle unspecified (nil map or empty map)
+		if fieldValue.IsNil() || fieldValue.Len() == 0 {
 			return nil
 		}
 
@@ -264,11 +264,14 @@ func visitModelNodeAttribute(args []string, node *Node, fieldValue reflect.Value
 		if fieldValue.MapIndex(reflect.ValueOf(false)).IsValid() {
 			node.Attributes[args[1]] = json.RawMessage("null")
 			return nil
-		} else {
-
-			// handle value
-			fieldValue = fieldValue.MapIndex(reflect.ValueOf(true))
 		}
+
+		// handle value
+		val := fieldValue.MapIndex(reflect.ValueOf(true))
+		if !val.IsValid() {
+			return nil
+		}
+		fieldValue = val
 	}
 
 	if fieldValue.Type() == reflect.TypeOf(time.Time{}) {

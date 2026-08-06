@@ -382,6 +382,116 @@ func TestUnmarshalNullableBool(t *testing.T) {
 	}
 }
 
+func TestUnmarshalNullableAttr_Int64(t *testing.T) {
+	for _, tc := range []struct {
+		desc          string
+		attrs         map[string]interface{}
+		wantSpecified bool
+		wantNull      bool
+		wantValue     int64
+	}{
+		{
+			desc:          "int64_value_present",
+			attrs:         map[string]interface{}{"name": "Name", "int64": float64(42)},
+			wantSpecified: true,
+			wantNull:      false,
+			wantValue:     42,
+		},
+		{
+			desc:          "int64_key_absent",
+			attrs:         map[string]interface{}{"name": "Name"},
+			wantSpecified: false,
+			wantNull:      false,
+		},
+		// A JSON null for a NullableAttr field is indistinguishable from a missing key—both result in unspecified.
+		{
+			desc:          "int64_explicit_null_treated_as_unspecified",
+			attrs:         map[string]interface{}{"name": "Name", "int64": nil},
+			wantSpecified: false,
+			wantNull:      false,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			out := new(WithNullableAttrs)
+			if err := UnmarshalPayload(samplePayloadWithNullableAttrs(tc.attrs), out); err != nil {
+				t.Fatal(err)
+			}
+
+			field := out.Int64
+			if got, want := field.IsSpecified(), tc.wantSpecified; got != want {
+				t.Fatalf("IsSpecified(): got %v, want %v", got, want)
+			}
+			if got, want := field.IsNull(), tc.wantNull; got != want {
+				t.Fatalf("IsNull(): got %v, want %v", got, want)
+			}
+			if tc.wantSpecified && !tc.wantNull {
+				v, err := field.Get()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got, want := v, tc.wantValue; got != want {
+					t.Fatalf("Get(): got %v, want %v", got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestUnmarshalNullableAttr_String(t *testing.T) {
+	for _, tc := range []struct {
+		desc          string
+		attrs         map[string]interface{}
+		wantSpecified bool
+		wantNull      bool
+		wantValue     string
+	}{
+		{
+			desc:          "string_value_present",
+			attrs:         map[string]interface{}{"name": "Name", "string_val": "hello"},
+			wantSpecified: true,
+			wantNull:      false,
+			wantValue:     "hello",
+		},
+		{
+			desc:          "string_key_absent",
+			attrs:         map[string]interface{}{"name": "Name"},
+			wantSpecified: false,
+			wantNull:      false,
+		},
+		// Explicit JSON null for a NullableAttr results in unspecified (same as absent key).
+		{
+			desc:          "string_explicit_null_treated_as_unspecified",
+			attrs:         map[string]interface{}{"name": "Name", "string_val": nil},
+			wantSpecified: false,
+			wantNull:      false,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			out := new(WithNullableAttrs)
+			if err := UnmarshalPayload(samplePayloadWithNullableAttrs(tc.attrs), out); err != nil {
+				t.Fatal(err)
+			}
+
+			field := out.String
+			if got, want := field.IsSpecified(), tc.wantSpecified; got != want {
+				t.Fatalf("IsSpecified(): got %v, want %v", got, want)
+			}
+			if got, want := field.IsNull(), tc.wantNull; got != want {
+				t.Fatalf("IsNull(): got %v, want %v", got, want)
+			}
+			if tc.wantSpecified && !tc.wantNull {
+				v, err := field.Get()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got, want := v, tc.wantValue; got != want {
+					t.Fatalf("Get(): got %v, want %v", got, want)
+				}
+			}
+		})
+	}
+}
+
 func TestUnmarshalNullableRelationshipsNonNullValue(t *testing.T) {
 	comment := &Comment{
 		ID:   5,
