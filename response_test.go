@@ -1206,6 +1206,143 @@ func TestNullableAttr_Bool(t *testing.T) {
 	}
 }
 
+func TestNullableAttr_SetUnspecified(t *testing.T) {
+	for _, tc := range []struct {
+		desc          string
+		input         *WithNullableAttrs
+		wantKeyAbsent bool // true means the attribute key should NOT appear in JSON
+	}{
+		{
+			desc: "nil_map_not_marshaled",
+			input: &WithNullableAttrs{
+				ID:    5,
+				Int64: nil, // nil map
+			},
+			wantKeyAbsent: true,
+		},
+		{
+			desc: "empty_map_SetUnspecified_not_marshaled",
+			input: &WithNullableAttrs{
+				ID: 5,
+				Int64: func() NullableAttr[int64] {
+					var n NullableAttr[int64]
+					n.SetUnspecified()
+					return n
+				}(),
+			},
+			wantKeyAbsent: true,
+		},
+		{
+			desc: "null_map_marshaled_as_null",
+			input: &WithNullableAttrs{
+				ID:    5,
+				Int64: NewNullNullableAttr[int64](),
+			},
+			wantKeyAbsent: false,
+		},
+		{
+			desc: "value_map_marshaled_with_value",
+			input: &WithNullableAttrs{
+				ID:    5,
+				Int64: NewNullableAttrWithValue[int64](99),
+			},
+			wantKeyAbsent: false,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			out := bytes.NewBuffer(nil)
+			if err := MarshalPayload(out, tc.input); err != nil {
+				t.Fatal(err)
+			}
+
+			data := map[string]interface{}{}
+			if err := json.Unmarshal(out.Bytes(), &data); err != nil {
+				t.Fatal(err)
+			}
+
+			attrs, _ := data["data"].(map[string]interface{})["attributes"].(map[string]interface{})
+			_, keyPresent := attrs["int64"]
+			if got, want := !keyPresent, tc.wantKeyAbsent; got != want {
+				t.Fatalf("key absent=%v, want absent=%v (attrs=%v)", got, want, attrs)
+			}
+		})
+	}
+}
+
+func TestNullableAttr_Int64(t *testing.T) {
+	for _, tc := range []struct {
+		desc         string
+		input        *WithNullableAttrs
+		verification func(data map[string]interface{}) error
+	}{
+		{
+			desc: "int64_unspecified",
+			input: &WithNullableAttrs{
+				ID:    5,
+				Int64: nil,
+			},
+			verification: func(root map[string]interface{}) error {
+				_, ok := root["data"].(map[string]interface{})["attributes"].(map[string]interface{})["int64"]
+				if got, want := ok, false; got != want {
+					return fmt.Errorf("expected int64 key absent, got present")
+				}
+				return nil
+			},
+		},
+		{
+			desc: "int64_null",
+			input: &WithNullableAttrs{
+				ID:    5,
+				Int64: NewNullNullableAttr[int64](),
+			},
+			verification: func(root map[string]interface{}) error {
+				attrs := root["data"].(map[string]interface{})["attributes"].(map[string]interface{})
+				v, ok := attrs["int64"]
+				if !ok {
+					return fmt.Errorf("expected int64 key present, but was absent")
+				}
+				if v != nil {
+					return fmt.Errorf("expected int64=null, got %v", v)
+				}
+				return nil
+			},
+		},
+		{
+			desc: "int64_value",
+			input: &WithNullableAttrs{
+				ID:    5,
+				Int64: NewNullableAttrWithValue[int64](123),
+			},
+			verification: func(root map[string]interface{}) error {
+				v, ok := root["data"].(map[string]interface{})["attributes"].(map[string]interface{})["int64"].(float64)
+				if !ok {
+					return fmt.Errorf("expected int64 key with numeric value")
+				}
+				if got, want := int64(v), int64(123); got != want {
+					return fmt.Errorf("got %v, want %v", got, want)
+				}
+				return nil
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			out := bytes.NewBuffer(nil)
+			if err := MarshalPayload(out, tc.input); err != nil {
+				t.Fatal(err)
+			}
+			data := map[string]interface{}{}
+			if err := json.Unmarshal(out.Bytes(), &data); err != nil {
+				t.Fatal(err)
+			}
+			if tc.verification != nil {
+				if err := tc.verification(data); err != nil {
+					t.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
 func TestSupportsLinkable(t *testing.T) {
 	testModel := &Blog{
 		ID:        5,

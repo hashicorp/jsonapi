@@ -42,6 +42,8 @@ type WithNullableAttrs struct {
 	RFC3339Time     NullableAttr[time.Time]        `jsonapi:"attr,rfc3339_time,rfc3339,omitempty"`
 	ISO8601Time     NullableAttr[time.Time]        `jsonapi:"attr,iso8601_time,iso8601,omitempty"`
 	Bool            NullableAttr[bool]             `jsonapi:"attr,bool,omitempty"`
+	Int64           NullableAttr[int64]            `jsonapi:"attr,int64,omitempty"`
+	String          NullableAttr[string]           `jsonapi:"attr,string_val,omitempty"`
 	NullableComment NullableRelationship[*Comment] `jsonapi:"relation,nullable_comment,omitempty"`
 }
 

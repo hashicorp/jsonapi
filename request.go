@@ -724,6 +724,13 @@ func handleNullable(
 	structField reflect.StructField,
 	fieldValue reflect.Value) (reflect.Value, error) {
 
+	// Check for explicit JSON null (either Go nil interface or string "null")
+	if attribute == nil {
+		fieldValue.Set(reflect.MakeMapWithSize(fieldValue.Type(), 1))
+		fieldValue.SetMapIndex(reflect.ValueOf(false), reflect.Zero(fieldValue.Type().Elem()))
+		return fieldValue, nil
+	}
+
 	if a, ok := attribute.(string); ok && a == "null" {
 		return reflect.ValueOf(nil), nil
 	}
@@ -731,9 +738,20 @@ func handleNullable(
 	innerType := fieldValue.Type().Elem()
 	zeroValue := reflect.Zero(innerType)
 
-	attrVal, err := unmarshalAttribute(attribute, args, structField, zeroValue)
+	// Create a synthetic StructField with the unwrapped inner type
+	// so handleNumeric inspects innerType instead of NullableAttr[T]
+	innerStructField := structField
+	innerStructField.Type = innerType
+
+	attrVal, err := unmarshalAttribute(attribute, args, innerStructField, zeroValue)
 	if err != nil {
 		return reflect.ValueOf(nil), err
+	}
+
+	// Downstream handlers (like handleNumeric) may return a pointer to the primitive value.
+	// Dereference it if innerType is not a pointer type.
+	if attrVal.Kind() == reflect.Ptr && innerType.Kind() != reflect.Ptr {
+		attrVal = attrVal.Elem()
 	}
 
 	fieldValue.Set(reflect.MakeMapWithSize(fieldValue.Type(), 1))
